@@ -3,7 +3,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import Appointment, AppointmentHistory, AppointmentStatus, Provider
@@ -155,3 +155,47 @@ def list_all(
         stmt = stmt.where(Appointment.start_at < date_to)
     stmt = stmt.order_by(Appointment.start_at.desc()).offset(skip).limit(limit)
     return list(db.scalars(stmt))
+
+
+def count_by_status(db: Session, start: datetime, end: datetime) -> dict[AppointmentStatus, int]:
+    """Appointments starting in [start, end), grouped by status."""
+    stmt = (
+        select(Appointment.status, func.count())
+        .where(Appointment.start_at >= start, Appointment.start_at < end)
+        .group_by(Appointment.status)
+    )
+    return {status: count for status, count in db.execute(stmt)}
+
+
+def count_per_day(db: Session, start: datetime, end: datetime) -> list[tuple]:
+    """(UTC day, number of non-cancelled appointments) for appointments starting in [start, end)."""
+    day = func.date(func.timezone("UTC", Appointment.start_at))
+    stmt = (
+        select(day, func.count())
+        .where(
+            Appointment.start_at >= start,
+            Appointment.start_at < end,
+            Appointment.status != AppointmentStatus.cancelled,
+        )
+        .group_by(day)
+        .order_by(day)
+    )
+    return [(d, c) for d, c in db.execute(stmt)]
+
+
+def top_providers(db: Session, start: datetime, end: datetime, limit: int = 5) -> list[tuple]:
+    """(provider_id, service_name, non-cancelled appointment count), busiest first."""
+    count = func.count(Appointment.id)
+    stmt = (
+        select(Provider.id, Provider.service_name, count)
+        .join(Appointment, Appointment.provider_id == Provider.id)
+        .where(
+            Appointment.start_at >= start,
+            Appointment.start_at < end,
+            Appointment.status != AppointmentStatus.cancelled,
+        )
+        .group_by(Provider.id, Provider.service_name)
+        .order_by(count.desc(), Provider.id)
+        .limit(limit)
+    )
+    return [(pid, name, c) for pid, name, c in db.execute(stmt)]

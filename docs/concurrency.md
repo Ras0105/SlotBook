@@ -25,7 +25,23 @@ ALTER TABLE appointments ADD CONSTRAINT ex_appointments_no_overlap
 PostgreSQL itself rejects two overlapping booked rows for one provider, even if the
 application lock is bypassed or a bug slips through. Back-to-back appointments are allowed
 (half-open ranges) and cancelled rows are ignored. The service maps the resulting
-IntegrityError to HTTP 409. The Alembic migration must create the extension and this constraint.
+IntegrityError to HTTP 409. The Alembic migration (`0001`) creates the extension and this constraint.
+
+## Availability changes use the same lock
+
+Working hours and blocked periods are also written under `lock_provider()`:
+
+- **Blocked slot vs booking.** `create_blocked_slot()` checks for overlapping appointments and inserts the block in
+  one transaction while holding the provider lock. A booking for that provider takes the same lock, so the two can
+  never interleave: either the booking commits first (the block gets 409) or the block commits first (the booking
+  sees it and gets 409). Without the lock, both could pass their checks and leave a booking inside a blocked period.
+- **Working-hour rules.** `create_availability()` / `update_availability()` / `delete_availability()` also hold the
+  lock, so two concurrent requests cannot both pass the overlap check. As a second layer,
+  `ex_availability_no_overlap` (an exclusion constraint on provider, weekday and time range) makes PostgreSQL reject
+  overlapping rules even if the application check is bypassed.
+- Lock order is always **provider row first**, so no combination of these operations can deadlock.
+- A blocked period vs appointment overlap spans two tables, so it cannot be a single exclusion constraint;
+  the provider lock is the only guard there, which is why it is tested directly.
 
 ## Transactions
 
@@ -40,6 +56,8 @@ Booking writes the appointment and its history row in the same transaction: both
   With the lock removed, the exclusion constraint alone still gives 1 success; with both removed, 5 of 8 got through.
 - Also: unrelated slots all succeed in parallel; concurrent cancels; two reschedules into one slot; booking vs reschedule race.
 - `test_db_constraints.py`: duplicate and partial overlaps rejected, back-to-back and cancelled allowed.
+- `test_availability_concurrency.py`: booking vs blocked-slot race (never both succeed), availability writes wait for the
+  provider lock, concurrent overlapping rules/updates, and the database-level constraints. Removing the lock makes these fail.
 - `test_reliability.py`: rollback on mid-booking failure, failed reschedule changes nothing, lock timeout -> 503, history.
 
 ## Honest limits

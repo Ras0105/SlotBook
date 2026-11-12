@@ -65,3 +65,21 @@ def client(session_factory):
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_global_state(monkeypatch):
+    """Keep tests independent: fresh login counters, and emails collected in memory instead of logged."""
+    from app.core.config import settings
+    from app.core.rate_limit import login_limiter
+
+    login_limiter.reset_all()
+    monkeypatch.setattr(settings, "email_backend", "memory")
+    try:
+        from app.services import email_service
+
+        email_service.outbox.clear()
+    except ImportError:  # email service not created yet
+        pass
+    yield
+    login_limiter.reset_all()

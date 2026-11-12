@@ -3,7 +3,8 @@
 
 from datetime import datetime, time
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, SmallInteger, String, Time
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, SmallInteger, String, Time, literal_column
+from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -11,6 +12,9 @@ from app.database.base import Base
 
 class Provider(Base):
     __tablename__ = "providers"
+    __table_args__ = (
+        CheckConstraint("appointment_duration_minutes > 0", name="duration_positive"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
@@ -26,7 +30,23 @@ class Provider(Base):
 
 class Availability(Base):
     __tablename__ = "availability"
-    __table_args__ = (CheckConstraint("start_time < end_time"),)
+    __table_args__ = (
+        CheckConstraint("start_time < end_time", name="start_before_end"),
+        CheckConstraint("weekday BETWEEN 0 AND 6", name="weekday_range"),
+        # Safety net behind the application check: one provider cannot have two overlapping working-hour
+        # rules on the same weekday. Half-open ranges, so 09:00-12:00 and 12:00-15:00 may touch.
+        # (date + time -> timestamp is just a trick to build a range out of two time-of-day values.)
+        ExcludeConstraint(
+            ("provider_id", "="),
+            ("weekday", "="),
+            (
+                literal_column("tsrange(DATE '2000-01-01' + start_time, DATE '2000-01-01' + end_time, '[)')"),
+                "&&",
+            ),
+            using="gist",
+            name="ex_availability_no_overlap",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     provider_id: Mapped[int] = mapped_column(ForeignKey("providers.id"), index=True)
@@ -39,7 +59,7 @@ class Availability(Base):
 
 class BlockedSlot(Base):
     __tablename__ = "blocked_slots"
-    __table_args__ = (CheckConstraint("start_at < end_at"),)
+    __table_args__ = (CheckConstraint("start_at < end_at", name="start_before_end"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     provider_id: Mapped[int] = mapped_column(ForeignKey("providers.id"), index=True)

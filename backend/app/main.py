@@ -1,8 +1,21 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.config import settings
 from app.routes import auth, providers, availability, appointments, admin
 
-app = FastAPI(title="SlotBook", version="0.1.0")
+app = FastAPI(title="SlotBook", version="0.2.0")
+
+# Browsers only let a frontend on another origin call the API if the API says so.
+# Auth uses a Bearer token header (not cookies), so credentials/cookies are not allowed.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+    expose_headers=["Retry-After"],
+)
 
 app.include_router(auth.router)
 app.include_router(providers.router)
