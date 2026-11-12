@@ -1,15 +1,20 @@
 # SlotBook
 
-Appointment-booking backend: FastAPI, PostgreSQL, SQLAlchemy, Alembic.
+Appointment-booking platform: FastAPI + PostgreSQL backend, optional frontend, and project docs.
+
+```
+slotbook/
+├── backend/    FastAPI app, models, migrations, tests, Dockerfile
+├── frontend/   Client app (placeholder, add after the API is stable)
+├── docs/       Blueprint, architecture, database, API, concurrency notes
+└── docker-compose.yml
+```
 
 ## Run locally
 ```bash
-cp .env.example .env
+cp backend/.env.example backend/.env
 docker compose up --build
 # Swagger UI: http://localhost:8000/docs
 ```
 
-## Next steps
-1. `alembic init migrations`, point it at `app.database.base.Base`, generate the first migration.
-2. Finish the TODOs in `routes/`, `services/`, `repositories/` (see the 4-week plan).
-3. Pick a double-booking strategy (exclusion constraint or row lock) and test it in `tests/test_concurrency.py`.
+See `backend/README.md` for backend details and `docs/` for design notes.
