@@ -1,7 +1,7 @@
 # backend/app/repositories/availability_repository.py
 # Purpose: database queries for weekly availability rules and blocked slots.
 
-from datetime import time
+from datetime import datetime, time
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -59,3 +59,24 @@ def create_blocked_slot(db: Session, slot: BlockedSlot) -> BlockedSlot:
     db.add(slot)
     db.flush()
     return slot
+
+
+def list_for_provider_weekday(db: Session, provider_id: int, weekday: int) -> list[Availability]:
+    stmt = (
+        select(Availability)
+        .where(Availability.provider_id == provider_id, Availability.weekday == weekday)
+        .order_by(Availability.start_time)
+    )
+    return list(db.scalars(stmt))
+
+
+def list_blocked_between(
+    db: Session, provider_id: int, start: datetime, end: datetime
+) -> list[BlockedSlot]:
+    """Blocked periods that overlap [start, end)."""
+    stmt = select(BlockedSlot).where(
+        BlockedSlot.provider_id == provider_id,
+        BlockedSlot.start_at < end,
+        BlockedSlot.end_at > start,
+    )
+    return list(db.scalars(stmt))

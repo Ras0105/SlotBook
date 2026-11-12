@@ -19,6 +19,7 @@ def create_provider(db: Session, user: User, data: ProviderCreate) -> Provider:
         user_id=user.id,
         service_name=data.service_name,
         appointment_duration_minutes=data.appointment_duration_minutes,
+        timezone=data.timezone,
     )
     try:
         provider_repository.create(db, provider)

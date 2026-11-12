@@ -16,6 +16,7 @@ class Provider(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
     service_name: Mapped[str] = mapped_column(String(150))
     appointment_duration_minutes: Mapped[int] = mapped_column(default=30)
+    timezone: Mapped[str] = mapped_column(String(64), default="UTC", server_default="UTC")  # IANA name
 
     user: Mapped["User"] = relationship(back_populates="provider")
     availability: Mapped[list["Availability"]] = relationship(back_populates="provider")
