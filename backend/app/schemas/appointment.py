@@ -1,15 +1,29 @@
-from datetime import datetime
+# backend/app/schemas/appointment.py
+# Purpose: Pydantic request/response models for booking, viewing, cancelling and rescheduling.
 
-from pydantic import BaseModel
+from datetime import datetime, timezone
+
+from pydantic import AwareDatetime, BaseModel, field_validator
+
+from app.models import AppointmentStatus
+
+
+def _to_utc(value: datetime) -> datetime:
+    """Clients must send timezone-aware datetimes; everything is stored and compared in UTC."""
+    return value.astimezone(timezone.utc)
 
 
 class AppointmentCreate(BaseModel):
     provider_id: int
-    start_at: datetime  # timezone-aware, stored as UTC
+    start_at: AwareDatetime  # e.g. 2026-11-14T09:00:00Z; end time is derived from the provider's duration
+
+    _utc = field_validator("start_at")(_to_utc)
 
 
 class AppointmentReschedule(BaseModel):
-    new_start_at: datetime
+    new_start_at: AwareDatetime
+
+    _utc = field_validator("new_start_at")(_to_utc)
 
 
 class AppointmentOut(BaseModel):
@@ -18,6 +32,21 @@ class AppointmentOut(BaseModel):
     provider_id: int
     start_at: datetime
     end_at: datetime
-    status: str
+    status: AppointmentStatus
+    created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class AppointmentHistoryOut(BaseModel):
+    old_status: AppointmentStatus | None
+    new_status: AppointmentStatus
+    changed_at: datetime
+    changed_by: int
+    note: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class AppointmentDetailOut(AppointmentOut):
+    history: list[AppointmentHistoryOut]

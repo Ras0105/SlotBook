@@ -1,16 +1,61 @@
 # backend/app/repositories/appointment_repository.py
-# Purpose: database queries for appointments, overlap checks and status history.
+# Purpose: database queries for appointments, row locks, overlap checks and status history.
 
 from datetime import datetime
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import Appointment, AppointmentHistory, AppointmentStatus
+from app.models import Appointment, AppointmentHistory, AppointmentStatus, Provider
 
 
 def get_by_id(db: Session, appointment_id: int) -> Appointment | None:
     return db.get(Appointment, appointment_id)
+
+
+def get_by_id_for_update(db: Session, appointment_id: int) -> Appointment | None:
+    """Re-read the appointment and lock its row until the transaction ends.
+
+    populate_existing makes sure we see the latest committed values, not a stale cached copy.
+    """
+    stmt = (
+        select(Appointment)
+        .where(Appointment.id == appointment_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    return db.scalar(stmt)
+
+
+def lock_provider(db: Session, provider_id: int) -> Provider | None:
+    """SELECT ... FOR UPDATE on the provider row.
+
+    Every booking/rescheduling for one provider takes this lock first, so those
+    operations run one after another. That makes "check availability, then insert"
+    safe: a second request waits, then sees the first request's committed appointment.
+    The lock is released on commit or rollback.
+    """
+    return db.scalar(select(Provider).where(Provider.id == provider_id).with_for_update())
+
+
+def list_for_user(
+    db: Session,
+    user_id: int,
+    provider_id: int | None = None,
+    status: AppointmentStatus | None = None,
+    skip: int = 0,
+    limit: int = 50,
+) -> list[Appointment]:
+    """Appointments where the user is the customer, or (if they have a provider profile) the provider."""
+    if provider_id is not None:
+        ownership = or_(Appointment.customer_id == user_id, Appointment.provider_id == provider_id)
+    else:
+        ownership = Appointment.customer_id == user_id
+    stmt = select(Appointment).where(ownership)
+    if status is not None:
+        stmt = stmt.where(Appointment.status == status)
+    stmt = stmt.order_by(Appointment.start_at.desc(), Appointment.id.desc()).offset(skip).limit(limit)
+    return list(db.scalars(stmt))
 
 
 def list_for_customer(db: Session, customer_id: int, skip: int = 0, limit: int = 50) -> list[Appointment]:
@@ -47,8 +92,7 @@ def has_overlap(
     """True if an active appointment overlaps the range. Cancelled ones are ignored.
 
     Two ranges overlap when: existing.start < new.end AND existing.end > new.start.
-    This check alone is NOT safe under concurrency; the booking service must also
-    lock the provider row or rely on a database exclusion constraint.
+    This check alone is NOT safe under concurrency; callers must hold lock_provider().
     """
     conditions = [
         Appointment.provider_id == provider_id,
@@ -73,12 +117,14 @@ def add_history(
     old_status: AppointmentStatus | None,
     new_status: AppointmentStatus,
     changed_by: int,
+    note: str | None = None,
 ) -> AppointmentHistory:
     entry = AppointmentHistory(
         appointment_id=appointment_id,
         old_status=old_status,
         new_status=new_status,
         changed_by=changed_by,
+        note=note,
     )
     db.add(entry)
     db.flush()

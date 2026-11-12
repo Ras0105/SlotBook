@@ -4,7 +4,7 @@
 import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Index
+from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -40,7 +40,9 @@ class Appointment(Base):
 
     customer: Mapped["User"] = relationship(back_populates="appointments")
     provider: Mapped["Provider"] = relationship(back_populates="appointments")
-    history: Mapped[list["AppointmentHistory"]] = relationship(back_populates="appointment")
+    history: Mapped[list["AppointmentHistory"]] = relationship(
+        back_populates="appointment", order_by="AppointmentHistory.id"
+    )
 
 
 class AppointmentHistory(Base):
@@ -54,5 +56,6 @@ class AppointmentHistory(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     changed_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    note: Mapped[str | None] = mapped_column(String(255))  # e.g. "Rescheduled from ... to ..."
 
     appointment: Mapped[Appointment] = relationship(back_populates="history")

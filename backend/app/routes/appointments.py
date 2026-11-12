@@ -1,5 +1,69 @@
-from fastapi import APIRouter
+# backend/app/routes/appointments.py
+# Purpose: HTTP endpoints for the booking lifecycle (book, list mine, view, cancel, reschedule).
+
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy.orm import Session
+
+from app.database.session import get_db
+from app.dependencies.auth import get_current_user, require_role
+from app.models import AppointmentStatus, Role, User
+from app.schemas.appointment import (
+    AppointmentCreate,
+    AppointmentDetailOut,
+    AppointmentOut,
+    AppointmentReschedule,
+)
+from app.services import appointment_service
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
 
-# TODO: POST /, GET /me, GET /{id}, PATCH /{id}/cancel, PATCH /{id}/reschedule
+
+@router.post("", response_model=AppointmentOut, status_code=status.HTTP_201_CREATED)
+def book_appointment(
+    data: AppointmentCreate,
+    user: User = Depends(require_role(Role.customer, Role.provider)),
+    db: Session = Depends(get_db),
+):
+    return appointment_service.create_appointment(db, user, data)
+
+
+# Declared before "/{appointment_id}" so "me" is never parsed as an id.
+@router.get("/me", response_model=list[AppointmentOut])
+def list_my_appointments(
+    status_filter: AppointmentStatus | None = Query(default=None, alias="status"),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return appointment_service.list_my_appointments(
+        db, user, status_filter=status_filter, skip=skip, limit=limit
+    )
+
+
+@router.get("/{appointment_id}", response_model=AppointmentDetailOut)
+def get_appointment(
+    appointment_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return appointment_service.get_appointment(db, user, appointment_id)
+
+
+@router.patch("/{appointment_id}/cancel", response_model=AppointmentOut)
+def cancel_appointment(
+    appointment_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return appointment_service.cancel_appointment(db, user, appointment_id)
+
+
+@router.patch("/{appointment_id}/reschedule", response_model=AppointmentOut)
+def reschedule_appointment(
+    appointment_id: int,
+    data: AppointmentReschedule,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return appointment_service.reschedule_appointment(db, user, appointment_id, data)
