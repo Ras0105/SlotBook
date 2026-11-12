@@ -4,7 +4,8 @@
 import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Index, String
+from sqlalchemy import DDL, CheckConstraint, DateTime, Enum, ForeignKey, Index, String, event, literal_column, text
+from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -21,9 +22,16 @@ class Appointment(Base):
     __table_args__ = (
         CheckConstraint("start_at < end_at"),
         Index("ix_appointments_provider_start", "provider_id", "start_at"),
-        # TODO (Week 3): add a PostgreSQL exclusion constraint on
-        # (provider_id, tstzrange(start_at, end_at)) WHERE status = 'booked'
-        # in an Alembic migration, or use row locking in the booking service.
+        # Database-enforced rule: one provider cannot have two overlapping BOOKED appointments.
+        # Half-open ranges '[)' so back-to-back appointments (10:00-10:30, 10:30-11:00) are allowed.
+        # Cancelled/completed rows are outside the WHERE clause, so they never block a slot.
+        ExcludeConstraint(
+            ("provider_id", "="),
+            (literal_column("tstzrange(start_at, end_at, '[)')"), "&&"),
+            where=text("status = 'booked'"),
+            using="gist",
+            name="ex_appointments_no_overlap",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -43,6 +51,10 @@ class Appointment(Base):
     history: Mapped[list["AppointmentHistory"]] = relationship(
         back_populates="appointment", order_by="AppointmentHistory.id"
     )
+
+
+# The exclusion constraint on (provider_id = , time range &&) needs the btree_gist extension.
+event.listen(Appointment.__table__, "before_create", DDL("CREATE EXTENSION IF NOT EXISTS btree_gist"))
 
 
 class AppointmentHistory(Base):

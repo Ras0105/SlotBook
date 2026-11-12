@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     secret_key: str = "change-me"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
+    lock_timeout_ms: int = 5000  # max time a booking waits for a row lock before returning 503
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

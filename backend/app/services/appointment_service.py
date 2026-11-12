@@ -1,13 +1,16 @@
 # backend/app/services/appointment_service.py
 # Purpose: booking lifecycle rules: book, view, list, cancel, reschedule (transactions + double-booking protection).
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
+from app.database.transaction import transaction
 from app.models import Appointment, AppointmentStatus, Provider, Role, User
 from app.repositories import appointment_repository, availability_repository, provider_repository
 from app.schemas.appointment import AppointmentCreate, AppointmentReschedule
@@ -15,8 +18,29 @@ from app.services.slot_service import compute_slots
 
 _NEVER = datetime.min.replace(tzinfo=timezone.utc)  # "now" that never filters anything out
 
+# PostgreSQL error codes that mean "try again": lock timeout, deadlock, serialization failure.
+_RETRYABLE_PGCODES = {"55P03", "40P01", "40001"}
+
 
 # ---------------------------------------------------------------- helpers
+
+@contextmanager
+def _translate_db_errors() -> Iterator[None]:
+    """Turn database-level failures into clean HTTP errors (instead of a 500)."""
+    try:
+        yield
+    except IntegrityError:
+        # The exclusion constraint rejected an overlapping booking: someone else got there first.
+        raise HTTPException(status.HTTP_409_CONFLICT, "This slot is no longer available")
+    except OperationalError as exc:
+        if getattr(exc.orig, "pgcode", None) in _RETRYABLE_PGCODES:
+            raise HTTPException(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "The booking system is busy, please retry",
+                headers={"Retry-After": "1"},
+            )
+        raise
+
 
 def _can_access(user: User, appointment: Appointment) -> bool:
     """The customer, the provider who owns the appointment, or an admin."""
@@ -106,12 +130,15 @@ def list_my_appointments(
 
 
 # ---------------------------------------------------------------- commands
+# Every command is ONE transaction. Defence in depth against double booking:
+#   1. lock_provider(): bookings for one provider run one at a time (application level);
+#   2. ex_appointments_no_overlap: PostgreSQL itself rejects overlapping booked rows (database level).
 
 def create_appointment(
     db: Session, user: User, data: AppointmentCreate, now: datetime | None = None
 ) -> Appointment:
     now = now or datetime.now(timezone.utc)
-    try:
+    with _translate_db_errors(), transaction(db):
         # 1. Serialise bookings per provider (lock held until commit/rollback).
         provider = appointment_repository.lock_provider(db, data.provider_id)
         if not provider:
@@ -134,14 +161,6 @@ def create_appointment(
         appointment_repository.add_history(
             db, appointment.id, None, AppointmentStatus.booked, user.id, note="Appointment booked"
         )
-        db.commit()
-    except HTTPException:
-        db.rollback()  # release the lock right away
-        raise
-    except IntegrityError:
-        # Safety net: a database constraint (e.g. an exclusion constraint) rejected the insert.
-        db.rollback()
-        raise HTTPException(status.HTTP_409_CONFLICT, "This slot is no longer available")
 
     db.refresh(appointment)
     return appointment
@@ -151,13 +170,15 @@ def cancel_appointment(
     db: Session, user: User, appointment_id: int, now: datetime | None = None
 ) -> Appointment:
     now = now or datetime.now(timezone.utc)
-    try:
+    with _translate_db_errors(), transaction(db):
         _get_accessible(db, user, appointment_id)  # 404 / 403
+        # Re-read under a row lock: if two cancels race, the second one sees "cancelled" and gets 409.
         appointment = appointment_repository.get_by_id_for_update(db, appointment_id)
 
         if appointment.status != AppointmentStatus.booked:
             raise HTTPException(
-                status.HTTP_409_CONFLICT, f"Only booked appointments can be cancelled (this one is {appointment.status.value})"
+                status.HTTP_409_CONFLICT,
+                f"Only booked appointments can be cancelled (this one is {appointment.status.value})",
             )
         if appointment.start_at <= now:
             raise HTTPException(status.HTTP_409_CONFLICT, "This appointment has already started")
@@ -166,10 +187,6 @@ def cancel_appointment(
         appointment_repository.add_history(
             db, appointment.id, AppointmentStatus.booked, AppointmentStatus.cancelled, user.id, note="Cancelled"
         )
-        db.commit()
-    except HTTPException:
-        db.rollback()
-        raise
 
     db.refresh(appointment)
     return appointment
@@ -187,7 +204,7 @@ def reschedule_appointment(
     Only the customer who booked it (or an admin) may reschedule; a provider can cancel instead.
     """
     now = now or datetime.now(timezone.utc)
-    try:
+    with _translate_db_errors(), transaction(db):
         appointment = appointment_repository.get_by_id(db, appointment_id)
         if not appointment:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Appointment not found")
@@ -200,7 +217,8 @@ def reschedule_appointment(
 
         if appointment.status != AppointmentStatus.booked:
             raise HTTPException(
-                status.HTTP_409_CONFLICT, f"Only booked appointments can be rescheduled (this one is {appointment.status.value})"
+                status.HTTP_409_CONFLICT,
+                f"Only booked appointments can be rescheduled (this one is {appointment.status.value})",
             )
         if appointment.start_at <= now:
             raise HTTPException(status.HTTP_409_CONFLICT, "This appointment has already started")
@@ -222,13 +240,6 @@ def reschedule_appointment(
             user.id,
             note=f"Rescheduled from {old_start.isoformat()} to {data.new_start_at.isoformat()}",
         )
-        db.commit()
-    except HTTPException:
-        db.rollback()
-        raise
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status.HTTP_409_CONFLICT, "This slot is no longer available")
 
     db.refresh(appointment)
     return appointment
