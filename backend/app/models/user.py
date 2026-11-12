@@ -1,3 +1,6 @@
+# backend/app/models/user.py
+# Purpose: User table and Role enum (customer / provider / admin).
+
 import enum
 from datetime import datetime, timezone
 
@@ -21,7 +24,9 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[Role] = mapped_column(Enum(Role), default=Role.customer)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
 
     provider: Mapped["Provider | None"] = relationship(back_populates="user", uselist=False)
     appointments: Mapped[list["Appointment"]] = relationship(back_populates="customer")

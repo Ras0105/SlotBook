@@ -1,3 +1,6 @@
+# backend/app/models/provider.py
+# Purpose: Provider profile, weekly working hours (Availability) and blocked periods (BlockedSlot).
+
 from datetime import datetime, time
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, SmallInteger, String, Time
