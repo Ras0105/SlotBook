@@ -1,5 +1,47 @@
-from fastapi import APIRouter
+# backend/app/routes/providers.py
+# Purpose: HTTP endpoints for provider profiles (create, list, view, update own).
 
-router = APIRouter(tags=["providers"])
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy.orm import Session
 
-# TODO: GET /providers, POST /providers, GET /providers/{id}/slots?date=YYYY-MM-DD
+from app.database.session import get_db
+from app.dependencies.auth import require_role
+from app.models import Role, User
+from app.schemas.provider import ProviderCreate, ProviderOut, ProviderUpdate
+from app.services import provider_service
+
+router = APIRouter(prefix="/providers", tags=["providers"])
+
+
+@router.post("", response_model=ProviderOut, status_code=status.HTTP_201_CREATED)
+def create_provider(
+    data: ProviderCreate,
+    user: User = Depends(require_role(Role.customer, Role.provider)),
+    db: Session = Depends(get_db),
+):
+    return provider_service.create_provider(db, user, data)
+
+
+@router.get("", response_model=list[ProviderOut])
+def list_providers(
+    search: str | None = Query(default=None, max_length=100),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    return provider_service.list_providers(db, search=search, skip=skip, limit=limit)
+
+
+# Declared before "/{provider_id}" so "me" is never parsed as an id.
+@router.patch("/me", response_model=ProviderOut)
+def update_my_profile(
+    data: ProviderUpdate,
+    user: User = Depends(require_role(Role.provider)),
+    db: Session = Depends(get_db),
+):
+    return provider_service.update_my_profile(db, user, data)
+
+
+@router.get("/{provider_id}", response_model=ProviderOut)
+def get_provider(provider_id: int, db: Session = Depends(get_db)):
+    return provider_service.get_provider(db, provider_id)
