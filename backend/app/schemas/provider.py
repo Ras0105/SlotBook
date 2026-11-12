@@ -1,9 +1,7 @@
 # backend/app/schemas/provider.py
-# Purpose: Pydantic request/response models for provider profiles and availability.
+# Purpose: Pydantic request/response models for provider profiles.
 
-from datetime import time
-
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 
 class ProviderCreate(BaseModel):
@@ -25,15 +23,3 @@ class ProviderOut(BaseModel):
     appointment_duration_minutes: int
 
     model_config = {"from_attributes": True}
-
-
-class AvailabilityCreate(BaseModel):
-    weekday: int = Field(ge=0, le=6)  # 0 = Monday
-    start_time: time
-    end_time: time
-
-    @model_validator(mode="after")
-    def check_time_range(self):
-        if self.start_time >= self.end_time:
-            raise ValueError("start_time must be before end_time")
-        return self
