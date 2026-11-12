@@ -16,6 +16,7 @@ Short notes on design decisions and bugs solved.
 - **Admin API** `GET /admin/appointments` with filters/pagination, and a CLI to bootstrap admins.
 - **Production config validation**: weak/default `SECRET_KEY` makes the app refuse to start when `ENVIRONMENT=production`.
 - **Docker**: DB healthcheck, `slotbook_test` created automatically, migrations run on container start.
+<<<<<<< HEAD
 
 ## Review round 2 (frontend readiness and polish)
 
@@ -29,3 +30,5 @@ Short notes on design decisions and bugs solved.
 - **Deployment bugs prevented**: hosts give `postgres://` URLs (SQLAlchemy needs `postgresql+psycopg2://`, now converted)
   and inject `$PORT` (the Dockerfile now honours it).
 - Docs: ER diagram, architecture and sequence diagrams (Mermaid), real API examples from `scripts/demo.py`, deployment guide.
+=======
+>>>>>>> 1b166ad1a412ecd604ed83ea617b5aa4eb056234

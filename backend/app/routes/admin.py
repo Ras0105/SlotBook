@@ -10,9 +10,14 @@ from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.dependencies.auth import require_role
 from app.models import AppointmentStatus, Role, User
+<<<<<<< HEAD
 from app.schemas.admin import StatsOut
 from app.schemas.appointment import AppointmentOut
 from app.services import appointment_service, stats_service
+=======
+from app.schemas.appointment import AppointmentOut
+from app.services import appointment_service
+>>>>>>> 1b166ad1a412ecd604ed83ea617b5aa4eb056234
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -40,6 +45,7 @@ def list_all_appointments(
         skip=skip,
         limit=limit,
     )
+<<<<<<< HEAD
 
 
 # Declared as a separate path, so it never clashes with /admin/appointments.
@@ -56,3 +62,5 @@ def get_stats(
         date_from=date_from.astimezone(timezone.utc) if date_from else None,
         date_to=date_to.astimezone(timezone.utc) if date_to else None,
     )
+=======
+>>>>>>> 1b166ad1a412ecd604ed83ea617b5aa4eb056234

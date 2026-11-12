@@ -4,7 +4,11 @@
 
 import logging
 
+<<<<<<< HEAD
 from pydantic import field_validator, model_validator
+=======
+from pydantic import model_validator
+>>>>>>> 1b166ad1a412ecd604ed83ea617b5aa4eb056234
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -41,6 +45,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+<<<<<<< HEAD
     @field_validator("database_url")
     @classmethod
     def normalise_database_url(cls, value: str) -> str:
@@ -54,6 +59,8 @@ class Settings(BaseSettings):
     def cors_origin_list(self) -> list[str]:
         return [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]
 
+=======
+>>>>>>> 1b166ad1a412ecd604ed83ea617b5aa4eb056234
     @property
     def is_production(self) -> bool:
         return self.environment.lower() in {"production", "prod"}
@@ -73,10 +80,13 @@ class Settings(BaseSettings):
                 problems.append("ALGORITHM must not be 'none'")
             if self.access_token_expire_minutes <= 0:
                 problems.append("ACCESS_TOKEN_EXPIRE_MINUTES must be positive")
+<<<<<<< HEAD
             if "*" in self.cors_origin_list:
                 problems.append("CORS_ORIGINS must list your frontend's exact origin(s), not '*'")
             if self.email_backend.lower() == "smtp" and not self.smtp_host:
                 problems.append("SMTP_HOST is required when EMAIL_BACKEND=smtp")
+=======
+>>>>>>> 1b166ad1a412ecd604ed83ea617b5aa4eb056234
             if problems:
                 raise ValueError("Insecure production configuration: " + "; ".join(problems))
         elif insecure:

@@ -50,6 +50,7 @@ def test_environment_is_read_from_env_vars(monkeypatch):
     monkeypatch.setenv("SECRET_KEY", "change-me")
     with pytest.raises(ValidationError):
         Settings(_env_file=None)
+<<<<<<< HEAD
 
 
 @pytest.mark.parametrize(
@@ -58,3 +59,5 @@ def test_environment_is_read_from_env_vars(monkeypatch):
 )
 def test_database_url_from_hosting_platforms_is_normalised(given):
     assert make(database_url=given).database_url == "postgresql+psycopg2://u:p@host:5432/db"
+=======
+>>>>>>> 1b166ad1a412ecd604ed83ea617b5aa4eb056234
