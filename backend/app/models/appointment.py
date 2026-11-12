@@ -4,7 +4,7 @@
 import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import DDL, CheckConstraint, DateTime, Enum, ForeignKey, Index, String, event, literal_column, text
+from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Index, String, literal_column, text
 from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,8 +20,9 @@ class AppointmentStatus(str, enum.Enum):
 class Appointment(Base):
     __tablename__ = "appointments"
     __table_args__ = (
-        CheckConstraint("start_at < end_at"),
+        CheckConstraint("start_at < end_at", name="start_before_end"),
         Index("ix_appointments_provider_start", "provider_id", "start_at"),
+        Index("ix_appointments_start_at", "start_at"),  # admin date-range filters
         # Database-enforced rule: one provider cannot have two overlapping BOOKED appointments.
         # Half-open ranges '[)' so back-to-back appointments (10:00-10:30, 10:30-11:00) are allowed.
         # Cancelled/completed rows are outside the WHERE clause, so they never block a slot.
@@ -51,10 +52,6 @@ class Appointment(Base):
     history: Mapped[list["AppointmentHistory"]] = relationship(
         back_populates="appointment", order_by="AppointmentHistory.id"
     )
-
-
-# The exclusion constraint on (provider_id = , time range &&) needs the btree_gist extension.
-event.listen(Appointment.__table__, "before_create", DDL("CREATE EXTENSION IF NOT EXISTS btree_gist"))
 
 
 class AppointmentHistory(Base):

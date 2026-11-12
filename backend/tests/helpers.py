@@ -5,6 +5,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, time, timedelta, timezone
 from threading import Barrier
 
+from sqlalchemy import select
+
 from fastapi import HTTPException
 
 from app.models import Availability, Provider, Role, User
@@ -82,3 +84,16 @@ def run_parallel(session_factory, jobs) -> list:
 
     with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
         return list(pool.map(runner, jobs))
+
+
+def admin_headers(client, session_factory, email: str = "admin@test.com") -> dict:
+    """Register a user through the API, promote it to admin directly in the database, and log in.
+
+    There is deliberately no API for becoming an admin (see app/scripts/create_admin.py).
+    """
+    headers = auth_headers(client, email, "Admin")
+    with session_factory() as s:
+        user = s.scalar(select(User).where(User.email == email))
+        user.role = Role.admin
+        s.commit()
+    return headers

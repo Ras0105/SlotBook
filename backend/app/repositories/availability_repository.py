@@ -10,7 +10,7 @@ from app.models import Availability, BlockedSlot
 
 
 def get_by_id(db: Session, availability_id: int) -> Availability | None:
-    return db.get(Availability, availability_id)
+    return db.get(Availability, availability_id, populate_existing=True)
 
 
 def list_for_provider(db: Session, provider_id: int) -> list[Availability]:
