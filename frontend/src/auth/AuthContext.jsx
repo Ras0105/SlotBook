@@ -67,6 +67,13 @@ export function AuthProvider({ children }) {
     [signIn],
   );
 
+  // Re-read who we are (the role changes when a customer creates a provider profile).
+  const refreshUser = useCallback(async () => {
+    const me = await api.getMe();
+    setUser(me);
+    return me;
+  }, []);
+
   const signOut = useCallback(() => {
     tokenStore.clear();
     setUser(null);
@@ -75,8 +82,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, status, expired, signIn, signUp, signOut }),
-    [user, status, expired, signIn, signUp, signOut],
+    () => ({ user, status, expired, signIn, signUp, signOut, refreshUser }),
+    [user, status, expired, signIn, signUp, signOut, refreshUser],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

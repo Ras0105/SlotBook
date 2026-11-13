@@ -46,6 +46,13 @@ def list_providers(
     return provider_repository.list_providers(db, search=search, skip=skip, limit=limit)
 
 
+def get_my_profile(db: Session, user: User) -> Provider:
+    provider = provider_repository.get_by_user_id(db, user.id)
+    if not provider:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "You do not have a provider profile")
+    return provider
+
+
 def update_my_profile(db: Session, user: User, data: ProviderUpdate) -> Provider:
     provider = provider_repository.get_by_user_id(db, user.id)
     if not provider:

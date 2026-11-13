@@ -1,32 +1,9 @@
 # API reference
 
-<<<<<<< HEAD
 Interactive docs: `http://localhost:8000/docs` (Swagger UI). All timestamps are **UTC** ISO-8601 and **must include a
 timezone** when sent (e.g. `2026-11-16T03:30:00Z` or `2026-11-16T09:00:00+05:30`). Naive timestamps are rejected with 422.
 
 Protected endpoints need the header `Authorization: Bearer <access_token>` (from `POST /auth/login`).
-=======
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| POST | /auth/register | Register a user |
-| POST | /auth/login | Log in, get a token |
-| GET | /providers | List providers |
-| POST | /providers | Create provider profile |
-| POST | /availability | Create working hours (provider) |
-| PATCH / DELETE | /availability/{id} | Update / delete a working-hours rule (provider) |
-| POST | /availability/blocked-slots | Block a period (provider; 409 if bookings exist in it) |
-| GET | /providers/{id}/slots?date=YYYY-MM-DD | Available slots |
-| POST | /appointments | Book |
-| GET | /appointments/me | Current user's appointments |
-| GET | /appointments/{id} | Appointment details |
-| PATCH | /appointments/{id}/cancel | Cancel |
-| PATCH | /appointments/{id}/reschedule | Reschedule |
-| GET | /admin/appointments | Admin only. Filters: `provider_id`, `customer_id`, `status`, `date_from`, `date_to`; pagination: `skip`, `limit` (1-100) |
-
-Status codes: 201, 200, 401, 403, 404, 409 (slot conflict), 422, 503 (lock timeout, retry; sent with `Retry-After`).
-
-Admins cannot be created through the API; use `python -m app.scripts.create_admin`.
->>>>>>> 1b166ad1a412ecd604ed83ea617b5aa4eb056234
 
 | Method | Endpoint | Who | Purpose |
 | --- | --- | --- | --- |
@@ -36,12 +13,15 @@ Admins cannot be created through the API; use `python -m app.scripts.create_admi
 | GET | /providers | anyone | List providers (`search`, `skip`, `limit`) |
 | GET | /providers/{id} | anyone | One provider |
 | POST | /providers | customer | Create your provider profile (you become a provider) |
+| GET | /providers/me | provider | Your own profile |
 | PATCH | /providers/me | provider | Update your profile |
 | GET | /providers/{id}/slots?date=YYYY-MM-DD | anyone | Free slots on a day (in the provider's timezone) |
 | GET | /providers/{id}/availability | anyone | A provider's weekly working hours |
 | POST | /availability | provider | Add working hours |
 | PATCH / DELETE | /availability/{id} | provider (owner) | Change / remove a working-hours rule |
+| GET | /availability/blocked-slots | provider | Your blocked periods, soonest first; periods already over are hidden unless `include_past=true` |
 | POST | /availability/blocked-slots | provider | Block a period (409 if bookings exist inside it) |
+| DELETE | /availability/blocked-slots/{id} | provider (owner) | Remove a blocked period (the time becomes bookable again) |
 | POST | /appointments | customer, provider | Book a slot |
 | GET | /appointments/me | logged in | My appointments (`status`, `skip`, `limit`) |
 | GET | /appointments/{id} | customer, its provider, admin | Details with status history |

@@ -142,3 +142,100 @@ export function humanizeNote(note, timeZone) {
   if (!note) return note;
   return note.replace(ISO_IN_TEXT, (iso) => `${formatShortDate(iso, timeZone)}, ${formatTime(iso, timeZone)}`);
 }
+
+// ---------------------------------------------------------------------------------------------
+// Provider dashboard and admin screens.
+// A person types "9:00 on 16 Nov" meaning the PROVIDER's wall clock; the API wants the UTC instant.
+
+export const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']; // 0 = Monday, like the API
+
+/** How far `timeZone` is ahead of UTC at the UTC instant `utcMs`, in milliseconds (Kolkata: +19 800 000). */
+function offsetMs(utcMs, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+  }).formatToParts(new Date(utcMs));
+  const get = (type) => Number(parts.find((p) => p.type === type).value);
+  const asIfUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'));
+  return asIfUtc - Math.floor(utcMs / 1000) * 1000;
+}
+
+/**
+ * "2026-11-16" + "09:00" on the wall clock of `timeZone` -> the UTC instant as ISO text ("2026-11-16T03:30:00.000Z").
+ * Two passes make it correct on the day clocks change: the offset is looked up at the first guess,
+ * then re-checked at the corrected time. A wall time that does not exist (spring forward) or happens
+ * twice (fall back) resolves to one of the two valid instants, which is the usual convention.
+ */
+export function zonedTimeToUtc(day, clock, timeZone) {
+  const [y, m, d] = day.split('-').map(Number);
+  const [hh, mm] = clock.split(':').map(Number);
+  const wallAsUtc = Date.UTC(y, m - 1, d, hh, mm);
+  const first = wallAsUtc - offsetMs(wallAsUtc, timeZone);
+  const second = wallAsUtc - offsetMs(first, timeZone);
+  return new Date(second).toISOString();
+}
+
+/** The instant a calendar day begins in `timeZone`. */
+export function startOfDay(day, timeZone) {
+  return zonedTimeToUtc(day, '00:00', timeZone);
+}
+
+/** "09:00:00" (as the API sends working hours) -> "9:00 am". */
+export function formatClock(value) {
+  const [h, m] = value.split(':').map(Number);
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'pm' : 'am'}`;
+}
+
+export const formatClockRange = (start, end) => `${formatClock(start)} to ${formatClock(end)}`;
+
+/** "09:00:00" -> "09:00", the value an <input type="time"> wants. */
+export const clockToInput = (value) => value.slice(0, 5);
+
+/** "09:00" -> "09:00:00", what the API wants. */
+export const clockToApi = (value) => (value.length === 5 ? `${value}:00` : value);
+
+/** "Mon 16 Nov" for a plain calendar day. */
+export function formatDayShort(day) {
+  const { weekday, dayOfMonth, month } = dayParts(day);
+  return `${weekday} ${dayOfMonth} ${month}`;
+}
+
+/** "Mon 16 Nov, 9:00 am to 12:00 pm", or with both dates when the period spans days. */
+export function formatPeriod(startIso, endIso, timeZone) {
+  const startDay = dayOf(startIso, timeZone);
+  const endDay = dayOf(endIso, timeZone);
+  const start = `${formatShortDate(startIso, timeZone)}, ${formatTime(startIso, timeZone)}`;
+  if (startDay === endDay) return `${start} to ${formatTime(endIso, timeZone)}`;
+  return `${start} to ${formatShortDate(endIso, timeZone)}, ${formatTime(endIso, timeZone)}`;
+}
+
+// Browsers still list a few places under their old names ("Asia/Calcutta"). People look for the current
+// name ("Kolkata"), and both are valid for the backend, so show and save the current one.
+const MODERN_NAMES = {
+  'Asia/Calcutta': 'Asia/Kolkata',
+  'Asia/Saigon': 'Asia/Ho_Chi_Minh',
+  'Asia/Katmandu': 'Asia/Kathmandu',
+  'Asia/Rangoon': 'Asia/Yangon',
+};
+
+export const modernZone = (name) => MODERN_NAMES[name] ?? name;
+
+/** Every timezone name the browser knows (current names, sorted), for the timezone pickers. */
+export function allTimeZones() {
+  let zones;
+  try {
+    zones = Intl.supportedValuesOf('timeZone');
+  } catch {
+    zones = ['Asia/Kolkata', 'Europe/London', 'America/New_York', 'America/Los_Angeles', 'Australia/Sydney'];
+  }
+  return [...new Set(['UTC', ...zones.map(modernZone)])].sort((a, b) =>
+    a === 'UTC' ? -1 : b === 'UTC' ? 1 : a.localeCompare(b),
+  );
+}

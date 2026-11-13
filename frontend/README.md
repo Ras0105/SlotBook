@@ -19,7 +19,7 @@ Open http://localhost:5173. The app expects the API at `http://localhost:8000`. 
 > The backend only accepts browser requests from the addresses in its `CORS_ORIGINS` setting. The default includes
 > `http://localhost:5173`, which is where `npm run dev` runs.
 
-## What is built (customer flow)
+## What is built
 
 | Screen | Path | Notes |
 | --- | --- | --- |
@@ -29,7 +29,21 @@ Open http://localhost:5173. The app expects the API at `http://localhost:8000`. 
 | My appointments | `/appointments` | Upcoming / Past / Cancelled, cancel with confirmation, status history |
 | Reschedule | `/appointments/:id/reschedule` | Same time picker; your current time stays booked until you confirm |
 
-Not built yet: the provider dashboard (working hours, blocked times) and the admin pages.
+**Provider screens** (a customer can become a provider from the menu):
+
+| Screen | Path | Notes |
+| --- | --- | --- |
+| Become a provider | `/become-provider` | Service name, appointment length, timezone. The role is refreshed afterwards, so the menu changes at once |
+| Provider dashboard | `/dashboard` | Tabs (kept in the URL): **Working hours** (add, edit, remove per weekday), **Time off** (timed or whole-day blocks; a booking clash shows a link to your appointments), **Profile** |
+
+**Admin screens** (administrators only; the menu shows "Admin" instead of "My appointments"):
+
+| Screen | Path | Notes |
+| --- | --- | --- |
+| Overview | `/admin` | Last 7 / 30 / 90 days or a custom period (up to 92 days): totals, cancellation rate, bar chart of bookings per day (with a text summary and a table), busiest providers |
+| All appointments | `/admin/appointments` | Filters (status, provider number, customer number, dates) and paging, all kept in the URL; times shown in each provider's timezone |
+
+The role check on these pages (`RequireRole`) is only a courtesy: the backend refuses the requests with 403 anyway.
 
 ## How errors are shown
 
@@ -48,7 +62,7 @@ Not built yet: the provider dashboard (working hours, blocked times) and the adm
 ```
 src/
   api/          client.js (fetch wrapper, errors, token) and index.js (one function per endpoint)
-  auth/         AuthContext (who is logged in) and RequireAuth (protected pages)
+  auth/         AuthContext (who is logged in), RequireAuth (logged in) and RequireRole (provider / admin pages)
   components/   Layout, SlotPicker, DateStrip, ConfirmBar, Modal, Alert, ...
   hooks/        useAsync (load data, track loading/error)
   lib/          time.js (all timezone logic), errors.js (status -> sentence), providerCache.js
@@ -73,8 +87,8 @@ src/
 ## Tests
 
 ```powershell
-npm test                  # 59 fast tests, API mocked
-npm run test:integration  # 3 end-to-end tests against a REAL running backend
+npm test                  # 116 fast tests, API mocked
+npm run test:integration  # end-to-end tests against a REAL running backend (customer flow, provider flow, optional admin flow)
 ```
 
 The integration test needs the backend running at `VITE_API_URL` (default `http://localhost:8000`). It creates
@@ -82,3 +96,16 @@ its own users and a provider with unique emails, so it can run repeatedly agains
 through: sign up, search, book, reschedule, lose a race to another customer (409), cancel, and view history.
 
 Build for production with `npm run build` (output in `dist/`).
+
+### Admin integration test
+
+The admin part of the integration test needs an existing admin account (the API has no way to create one):
+
+```powershell
+cd backend
+python -m app.scripts.create_admin --email admin@example.com
+cd ../frontend
+$env:VITE_TEST_ADMIN_EMAIL="admin@example.com"; $env:VITE_TEST_ADMIN_PASSWORD="your-password"; npm run test:integration
+```
+
+Without those variables the admin test is skipped.

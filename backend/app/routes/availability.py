@@ -1,7 +1,7 @@
 # backend/app/routes/availability.py
 # Purpose: HTTP endpoints for provider working hours and blocked periods.
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -45,6 +45,26 @@ def create_blocked_slot(
     db: Session = Depends(get_db),
 ):
     return availability_service.create_blocked_slot(db, user, data)
+
+
+@router.get("/availability/blocked-slots", response_model=list[BlockedSlotOut])
+def list_my_blocked_slots(
+    include_past: bool = Query(default=False, description="Also list blocked periods that are already over"),
+    user: User = Depends(require_role(Role.provider)),
+    db: Session = Depends(get_db),
+):
+    """The logged-in provider's blocked periods, soonest first."""
+    return availability_service.list_my_blocked_slots(db, user, include_past)
+
+
+@router.delete("/availability/blocked-slots/{blocked_slot_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_blocked_slot(
+    blocked_slot_id: int,
+    user: User = Depends(require_role(Role.provider)),
+    db: Session = Depends(get_db),
+):
+    availability_service.delete_blocked_slot(db, user, blocked_slot_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.patch("/availability/{availability_id}", response_model=AvailabilityOut)

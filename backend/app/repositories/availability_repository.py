@@ -80,3 +80,22 @@ def list_blocked_between(
         BlockedSlot.end_at > start,
     )
     return list(db.scalars(stmt))
+
+
+def list_blocked_for_provider(
+    db: Session, provider_id: int, ends_after: datetime | None = None
+) -> list[BlockedSlot]:
+    """A provider's blocked periods, soonest first. With `ends_after`, periods already over are left out."""
+    stmt = select(BlockedSlot).where(BlockedSlot.provider_id == provider_id)
+    if ends_after is not None:
+        stmt = stmt.where(BlockedSlot.end_at > ends_after)
+    return list(db.scalars(stmt.order_by(BlockedSlot.start_at, BlockedSlot.id)))
+
+
+def get_blocked_by_id(db: Session, blocked_slot_id: int) -> BlockedSlot | None:
+    return db.get(BlockedSlot, blocked_slot_id, populate_existing=True)
+
+
+def delete_blocked_slot(db: Session, slot: BlockedSlot) -> None:
+    """Mark the blocked period for deletion. The caller commits."""
+    db.delete(slot)

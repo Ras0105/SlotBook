@@ -51,7 +51,6 @@ pytest -v
 Default URL: `postgresql+psycopg2://slotbook:slotbook@localhost:5432/slotbook_test` (override with `TEST_DATABASE_URL`).
 The migration test also needs permission to create/drop a scratch database (`slotbook_migration_test`).
 
-<<<<<<< HEAD
 ## Demo script
 `python scripts/demo.py [base_url]` runs a full booking story against a running API (successful booking, 409 conflict, cancel, rebook).
 
@@ -65,9 +64,3 @@ Set `ENVIRONMENT=production` and a random `SECRET_KEY` of at least 32 characters
 raises an error at startup if the secret is a default/placeholder value, shorter than 32 characters,
 the JWT algorithm is `none`, `CORS_ORIGINS` contains `*`, or SMTP is selected without `SMTP_HOST`.
 See `../docs/deployment.md`.
-=======
-## Production configuration
-Set `ENVIRONMENT=production` and a random `SECRET_KEY` of at least 32 characters. The application
-raises an error at startup if the secret is a default/placeholder value, shorter than 32 characters,
-or if the JWT algorithm is `none`.
->>>>>>> 1b166ad1a412ecd604ed83ea617b5aa4eb056234

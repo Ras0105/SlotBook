@@ -7,6 +7,8 @@
 #   - a blocked slot cannot be created while a booking for that provider is half-way through.
 # Lock order is always: provider row first, then anything else. That prevents deadlocks.
 
+from datetime import datetime, timezone
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -120,3 +122,24 @@ def create_blocked_slot(db: Session, user: User, data: BlockedSlotCreate) -> Blo
         availability_repository.create_blocked_slot(db, slot)
     db.refresh(slot)
     return slot
+
+
+def list_my_blocked_slots(db: Session, user: User, include_past: bool = False) -> list[BlockedSlot]:
+    """The caller's blocked periods, soonest first. Periods already over are hidden unless asked for."""
+    provider = provider_repository.get_by_user_id(db, user.id)
+    if not provider:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "You do not have a provider profile")
+    ends_after = None if include_past else datetime.now(timezone.utc)
+    return availability_repository.list_blocked_for_provider(db, provider.id, ends_after)
+
+
+def delete_blocked_slot(db: Session, user: User, blocked_slot_id: int) -> None:
+    """Remove one of the caller's blocked periods (the time becomes bookable again)."""
+    with translate_db_errors(), transaction(db):
+        provider = _get_my_locked_provider(db, user)
+        slot = availability_repository.get_blocked_by_id(db, blocked_slot_id)
+        if not slot:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Blocked period not found")
+        if slot.provider_id != provider.id:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "This blocked period belongs to another provider")
+        availability_repository.delete_blocked_slot(db, slot)

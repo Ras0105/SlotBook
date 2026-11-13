@@ -9,6 +9,9 @@ export const ROUTER_FUTURE = { v7_startTransition: true, v7_relativeSplatPath: t
 
 export const CUSTOMER = { id: 7, name: 'Asha Rao', email: 'asha@example.com', role: 'customer' };
 
+export const PROVIDER_USER = { id: 99, name: 'Dr Rao', email: 'rao@example.com', role: 'provider' };
+export const ADMIN = { id: 1, name: 'Root', email: 'root@example.com', role: 'admin' };
+
 export const PROVIDER = {
   id: 1,
   user_id: 99,

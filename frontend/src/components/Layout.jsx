@@ -34,7 +34,10 @@ export default function Layout() {
           </Link>
           <nav className="nav" aria-label="Main">
             <NavLink to="/providers">Providers</NavLink>
-            {user && <NavLink to="/appointments">My appointments</NavLink>}
+            {user && user.role !== 'admin' && <NavLink to="/appointments">My appointments</NavLink>}
+            {user?.role === 'provider' && <NavLink to="/dashboard">Dashboard</NavLink>}
+            {user?.role === 'customer' && <NavLink to="/become-provider">Become a provider</NavLink>}
+            {user?.role === 'admin' && <NavLink to="/admin">Admin</NavLink>}
           </nav>
           <div className="account">
             {status === 'authed' && user ? (

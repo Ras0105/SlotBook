@@ -90,8 +90,3 @@ Pydantic validates the same rules at the API edge (clear 422 errors); the databa
 
 ## Migrations
 Managed with Alembic (`backend/migrations`). See `backend/README.md`.
-<<<<<<< HEAD
-=======
-
-TODO: add an ER diagram.
->>>>>>> 1b166ad1a412ecd604ed83ea617b5aa4eb056234

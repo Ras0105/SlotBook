@@ -1,4 +1,4 @@
-// One function per backend endpoint used by the customer flow. Components never build URLs themselves.
+// One function per backend endpoint. Components never build URLs themselves.
 import { request } from './client';
 
 // ---- auth
@@ -38,3 +38,63 @@ export const cancelAppointment = (id) => request(`/appointments/${id}/cancel`, {
 
 export const rescheduleAppointment = (id, newStartAt) =>
   request(`/appointments/${id}/reschedule`, { method: 'PATCH', body: { new_start_at: newStartAt } });
+
+// ---- provider profile and working hours (provider role)
+export const createProvider = ({ serviceName, durationMinutes, timezone }) =>
+  request('/providers', {
+    method: 'POST',
+    body: { service_name: serviceName, appointment_duration_minutes: durationMinutes, timezone },
+  });
+
+export const getMyProvider = (signal) => request('/providers/me', { signal });
+
+export const updateMyProvider = ({ serviceName, durationMinutes, timezone }) =>
+  request('/providers/me', {
+    method: 'PATCH',
+    body: { service_name: serviceName, appointment_duration_minutes: durationMinutes, timezone },
+  });
+
+export const listAvailability = (providerId, signal) =>
+  request(`/providers/${providerId}/availability`, { auth: false, signal });
+
+export const createAvailability = ({ weekday, startTime, endTime }) =>
+  request('/availability', { method: 'POST', body: { weekday, start_time: startTime, end_time: endTime } });
+
+export const updateAvailability = (id, { weekday, startTime, endTime }) =>
+  request(`/availability/${id}`, { method: 'PATCH', body: { weekday, start_time: startTime, end_time: endTime } });
+
+export const deleteAvailability = (id) => request(`/availability/${id}`, { method: 'DELETE' });
+
+// ---- time off (blocked periods)
+export const listBlockedSlots = ({ includePast = false } = {}, signal) =>
+  request(`/availability/blocked-slots${includePast ? '?include_past=true' : ''}`, { signal });
+
+export const createBlockedSlot = ({ startAt, endAt, reason }) =>
+  request('/availability/blocked-slots', {
+    method: 'POST',
+    body: { start_at: startAt, end_at: endAt, ...(reason ? { reason } : {}) },
+  });
+
+export const deleteBlockedSlot = (id) => request(`/availability/blocked-slots/${id}`, { method: 'DELETE' });
+
+// ---- admin
+export const getAdminStats = ({ dateFrom, dateTo } = {}, signal) => {
+  const params = new URLSearchParams();
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo) params.set('date_to', dateTo);
+  const query = params.toString();
+  return request(`/admin/stats${query ? `?${query}` : ''}`, { signal });
+};
+
+export const listAdminAppointments = (
+  { providerId, customerId, status, dateFrom, dateTo, skip = 0, limit = 20 } = {},
+  signal,
+) => {
+  const params = new URLSearchParams({ skip, limit });
+  if (providerId) params.set('provider_id', providerId);
+  if (customerId) params.set('customer_id', customerId);
+  if (status) params.set('status', status);
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo) params.set('date_to', dateTo);
+  return request(`/admin/appointments?${params}`, { signal });
+};

@@ -1,6 +1,6 @@
 # SlotBook
 
-Appointment-booking backend (FastAPI + PostgreSQL) for clinics, salons, consultants and trainers.
+Appointment-booking app (FastAPI + PostgreSQL backend, React frontend) for clinics, salons, consultants and trainers.
 Customers browse providers, see free slots and book, cancel or reschedule. Providers manage working hours and time off.
 Admins oversee every booking and see statistics.
 
@@ -22,7 +22,7 @@ with concurrent tests. See [docs/concurrency.md](docs/concurrency.md).
 ```
 slotbook/
 ├── backend/    FastAPI app, models, migrations, tests, Dockerfile
-├── frontend/   Client app (placeholder)
+├── frontend/   React + Vite client: customer booking, provider dashboard, admin pages
 ├── docs/       Architecture, database, API, concurrency, deployment
 └── docker-compose.yml
 ```
@@ -35,10 +35,19 @@ docker compose up --build
 ```
 Create an admin: `docker compose exec backend python -m app.scripts.create_admin --email you@example.com`
 
+## Run the frontend
+With the API running (above), in a second terminal:
+```bash
+cd frontend && npm install && npm run dev
+# App: http://localhost:5173
+```
+See [frontend/README.md](frontend/README.md) for what is built, how errors are shown, and the tests.
+
 ## Run the tests
 ```bash
 docker compose up -d db
 cd backend && pip install -r requirements.txt && pytest -v
+cd ../frontend && npm test          # add: npm run test:integration (needs the API running)
 ```
 
 ## Demo: a successful booking, then a conflict

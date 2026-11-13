@@ -17,6 +17,18 @@ vi.mock('../api', () => ({
   getAppointment: vi.fn(),
   cancelAppointment: vi.fn(),
   rescheduleAppointment: vi.fn(),
+  createProvider: vi.fn(),
+  getMyProvider: vi.fn(),
+  updateMyProvider: vi.fn(),
+  listAvailability: vi.fn(),
+  createAvailability: vi.fn(),
+  updateAvailability: vi.fn(),
+  deleteAvailability: vi.fn(),
+  listBlockedSlots: vi.fn(),
+  createBlockedSlot: vi.fn(),
+  deleteBlockedSlot: vi.fn(),
+  getAdminStats: vi.fn(),
+  listAdminAppointments: vi.fn(),
 }));
 
 // jsdom has no scrolling; the app calls window.scrollTo on page changes.

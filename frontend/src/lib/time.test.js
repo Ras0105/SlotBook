@@ -1,9 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDays,
+  allTimeZones,
+  clockToApi,
+  clockToInput,
   dayOf,
+  formatClock,
+  formatClockRange,
+  formatDayShort,
+  formatPeriod,
   formatRange,
   formatTime,
+  modernZone,
+  startOfDay,
+  WEEKDAYS,
+  zonedTimeToUtc,
   groupSlots,
   hourOf,
   humanizeNote,
@@ -102,5 +113,68 @@ describe('humanizeNote', () => {
   });
   it('understands Z and fractional seconds', () => {
     expect(humanizeNote('at 2026-11-14T03:30:00.123Z', 'UTC')).toBe('at Sat 14 Nov, 3:30 am');
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+describe('provider dashboard time helpers', () => {
+  it('converts a provider wall-clock time to the UTC instant', () => {
+    expect(zonedTimeToUtc('2026-11-16', '09:00', 'Asia/Kolkata')).toBe('2026-11-16T03:30:00.000Z');
+    expect(zonedTimeToUtc('2026-11-16', '09:00', 'UTC')).toBe('2026-11-16T09:00:00.000Z');
+    // before 05:30 in Kolkata it is still the previous UTC day
+    expect(zonedTimeToUtc('2026-11-16', '01:30', 'Asia/Kolkata')).toBe('2026-11-15T20:00:00.000Z');
+    expect(zonedTimeToUtc('2026-11-16', '09:00', 'Asia/Calcutta')).toBe('2026-11-16T03:30:00.000Z'); // old alias
+  });
+
+  it('follows daylight saving: the same wall time maps to different UTC on either side of the change', () => {
+    expect(zonedTimeToUtc('2026-03-07', '09:00', 'America/New_York')).toBe('2026-03-07T14:00:00.000Z'); // EST, UTC-5
+    expect(zonedTimeToUtc('2026-03-09', '09:00', 'America/New_York')).toBe('2026-03-09T13:00:00.000Z'); // EDT, UTC-4
+    // on the change day itself (clocks jump 02:00 -> 03:00 on 8 March 2026)
+    expect(zonedTimeToUtc('2026-03-08', '09:00', 'America/New_York')).toBe('2026-03-08T13:00:00.000Z');
+    expect(zonedTimeToUtc('2026-03-08', '01:00', 'America/New_York')).toBe('2026-03-08T06:00:00.000Z');
+    expect(zonedTimeToUtc('2026-01-15', '09:00', 'Australia/Sydney')).toBe('2026-01-14T22:00:00.000Z'); // AEDT, UTC+11
+  });
+
+  it('round-trips with the display helpers', () => {
+    const iso = zonedTimeToUtc('2026-11-16', '09:00', 'Asia/Kolkata');
+    expect(dayOf(iso, 'Asia/Kolkata')).toBe('2026-11-16');
+    expect(formatTime(iso, 'Asia/Kolkata')).toBe('9:00 am');
+  });
+
+  it('formats working hours as plain clock times', () => {
+    expect(formatClock('09:00:00')).toBe('9:00 am');
+    expect(formatClock('00:05:00')).toBe('12:05 am');
+    expect(formatClock('12:00:00')).toBe('12:00 pm');
+    expect(formatClock('17:30:00')).toBe('5:30 pm');
+    expect(formatClockRange('09:00:00', '12:00:00')).toBe('9:00 am to 12:00 pm');
+  });
+
+  it('converts between the API clock format and <input type="time">', () => {
+    expect(clockToInput('09:00:00')).toBe('09:00');
+    expect(clockToApi('09:00')).toBe('09:00:00');
+    expect(clockToApi('09:00:00')).toBe('09:00:00');
+  });
+
+  it('describes a period, with both dates when it spans days', () => {
+    const tz = 'Asia/Kolkata';
+    const a = zonedTimeToUtc('2026-11-16', '09:00', tz);
+    const b = zonedTimeToUtc('2026-11-16', '12:00', tz);
+    const c = zonedTimeToUtc('2026-11-18', '09:00', tz);
+    expect(formatPeriod(a, b, tz)).toBe('Mon 16 Nov, 9:00 am to 12:00 pm');
+    expect(formatPeriod(a, c, tz)).toBe('Mon 16 Nov, 9:00 am to Wed 18 Nov, 9:00 am');
+  });
+
+  it('finds when a calendar day starts in a timezone, and labels plain days', () => {
+    expect(startOfDay('2026-11-16', 'Asia/Kolkata')).toBe('2026-11-15T18:30:00.000Z');
+    expect(formatDayShort('2026-11-16')).toBe('Mon 16 Nov');
+    expect(WEEKDAYS[0]).toBe('Monday'); // 0 = Monday, like the API
+  });
+
+  it('offers current timezone names only, with UTC first', () => {
+    expect(modernZone('Asia/Calcutta')).toBe('Asia/Kolkata');
+    const zones = allTimeZones();
+    expect(zones[0]).toBe('UTC');
+    expect(zones).toContain('Asia/Kolkata');
+    expect(zones).not.toContain('Asia/Calcutta');
   });
 });

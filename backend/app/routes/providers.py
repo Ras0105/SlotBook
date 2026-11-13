@@ -36,6 +36,14 @@ def list_providers(
 
 
 # Declared before "/{provider_id}" so "me" is never parsed as an id.
+@router.get("/me", response_model=ProviderOut)
+def get_my_profile(
+    user: User = Depends(require_role(Role.provider)),
+    db: Session = Depends(get_db),
+):
+    return provider_service.get_my_profile(db, user)
+
+
 @router.patch("/me", response_model=ProviderOut)
 def update_my_profile(
     data: ProviderUpdate,
