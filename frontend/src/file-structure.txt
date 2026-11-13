@@ -1,0 +1,79 @@
+Folder PATH listing
+Volume serial number is 50DE-7205
+D:.
+|   App.jsx
+|   file-structure.txt
+|   main.jsx
+|   
++---api
+|       .gitkeep
+|       client.js
+|       client.test.js
+|       index.js
+|       
++---auth
+|       AuthContext.jsx
+|       RequireAuth.jsx
+|       RequireRole.jsx
+|       
++---components
+|       .gitkeep
+|       AdminNav.jsx
+|       Alert.jsx
+|       BarChart.jsx
+|       ConfirmBar.jsx
+|       DateStrip.jsx
+|       EmptyState.jsx
+|       ErrorBoundary.jsx
+|       ErrorBoundary.test.jsx
+|       Field.jsx
+|       Layout.jsx
+|       Modal.jsx
+|       ProviderForm.jsx
+|       SlotPicker.jsx
+|       Spinner.jsx
+|       StatusBadge.jsx
+|       TimeOffPanel.jsx
+|       WorkingHoursPanel.jsx
+|       
++---hooks
+|       useAsync.js
+|       
++---lib
+|       errors.js
+|       providerCache.js
+|       time.js
+|       time.test.js
+|       
++---pages
+|       .gitkeep
+|       admin.test.jsx
+|       AdminAppointmentsPage.jsx
+|       AdminOverviewPage.jsx
+|       appointments.test.jsx
+|       AppointmentsPage.jsx
+|       auth.test.jsx
+|       BecomeProviderPage.jsx
+|       booking.test.jsx
+|       LoginPage.jsx
+|       NotFoundPage.jsx
+|       provider-dashboard.test.jsx
+|       ProviderDashboardPage.jsx
+|       ProviderPage.jsx
+|       providers.test.jsx
+|       ProvidersPage.jsx
+|       RegisterPage.jsx
+|       ReschedulePage.jsx
+|       
++---styles
+|       app.css
+|       
+\---test
+    |   setup.js
+    |   utils.jsx
+    |   
+    \---integration
+            customer-flow.test.jsx
+            provider-admin-flow.test.jsx
+            setup.js
+            
