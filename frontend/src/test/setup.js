@@ -1,0 +1,30 @@
+import '@testing-library/jest-dom/vitest';
+import { afterEach, vi } from 'vitest';
+import { cleanup } from '@testing-library/react';
+import { clearProviderCache } from '../lib/providerCache';
+
+// Component tests never touch the network: every API function is a mock the test controls.
+// (Tests of api/client.js import it directly, so they are not affected.)
+vi.mock('../api', () => ({
+  register: vi.fn(),
+  login: vi.fn(),
+  getMe: vi.fn(),
+  listProviders: vi.fn(),
+  getProvider: vi.fn(),
+  getSlots: vi.fn(),
+  bookAppointment: vi.fn(),
+  listMyAppointments: vi.fn(),
+  getAppointment: vi.fn(),
+  cancelAppointment: vi.fn(),
+  rescheduleAppointment: vi.fn(),
+}));
+
+// jsdom has no scrolling; the app calls window.scrollTo on page changes.
+window.scrollTo = vi.fn(() => Promise.resolve()); // like modern Chrome, which returns a Promise
+
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+  clearProviderCache();
+  vi.resetAllMocks();
+});
