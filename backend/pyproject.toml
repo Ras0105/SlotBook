@@ -1,2 +1,19 @@
+[project]
+name = "slotbook-backend"
+version = "0.2.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.117.1",
+    "sqlalchemy",
+    "psycopg2-binary",
+    "alembic",
+    "pydantic[email]",
+    "pydantic-settings",
+    "python-jose[cryptography]",
+    "passlib[argon2]",
+    "python-multipart",
+    "tzdata",
+]
+
 [tool.vercel]
-entrypoint = "app.main:app" 
+entrypoint = "app.main:app"
