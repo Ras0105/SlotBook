@@ -11,7 +11,9 @@ def test_me_returns_current_user(client):
     headers = auth_headers(client, "me@test.com", "Mia")
     r = client.get("/auth/me", headers=headers)
     assert r.status_code == 200
-    assert r.json() == {"id": 1, "name": "Mia", "email": "me@test.com", "role": "customer"}
+    body = r.json()
+    assert body.pop("created_at")  # an ISO timestamp, used for "member since" on the profile page
+    assert body == {"id": 1, "name": "Mia", "email": "me@test.com", "role": "customer"}
 
 
 def test_me_reflects_role_change_after_creating_provider_profile(client):

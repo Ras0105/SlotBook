@@ -41,7 +41,7 @@ def clean_db(engine):
         conn.execute(
             text(
                 "TRUNCATE appointment_history, appointments, blocked_slots, availability, "
-                "providers, users RESTART IDENTITY CASCADE"
+                "providers, password_reset_tokens, users RESTART IDENTITY CASCADE"
             )
         )
     return engine
@@ -71,9 +71,10 @@ def client(session_factory):
 def _isolate_global_state(monkeypatch):
     """Keep tests independent: fresh login counters, and emails collected in memory instead of logged."""
     from app.core.config import settings
-    from app.core.rate_limit import login_limiter
+    from app.core.rate_limit import login_limiter, password_reset_limiter
 
     login_limiter.reset_all()
+    password_reset_limiter.reset_all()
     monkeypatch.setattr(settings, "email_backend", "memory")
     try:
         from app.services import email_service
@@ -83,3 +84,4 @@ def _isolate_global_state(monkeypatch):
         pass
     yield
     login_limiter.reset_all()
+    password_reset_limiter.reset_all()

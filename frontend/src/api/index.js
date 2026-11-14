@@ -13,6 +13,30 @@ export const login = async ({ email, password }) => {
 
 export const getMe = () => request('/auth/me');
 
+// Profile (logged in). Send only what changed; changing the email also needs the current password.
+export const updateProfile = ({ name, email, currentPassword }) =>
+  request('/auth/me', {
+    method: 'PATCH',
+    body: {
+      ...(name !== undefined ? { name } : {}),
+      ...(email !== undefined ? { email } : {}),
+      ...(currentPassword ? { current_password: currentPassword } : {}),
+    },
+  });
+
+export const changePassword = ({ currentPassword, newPassword }) =>
+  request('/auth/change-password', {
+    method: 'POST',
+    body: { current_password: currentPassword, new_password: newPassword },
+  });
+
+// Forgot password (no login). The answer is the same whether or not the email has an account.
+export const forgotPassword = ({ email }) =>
+  request('/auth/forgot-password', { method: 'POST', body: { email }, auth: false });
+
+export const resetPassword = ({ token, newPassword }) =>
+  request('/auth/reset-password', { method: 'POST', body: { token, new_password: newPassword }, auth: false });
+
 // ---- providers and slots (public)
 export const listProviders = ({ search = '', skip = 0, limit = 10 } = {}, signal) => {
   const params = new URLSearchParams({ skip, limit });

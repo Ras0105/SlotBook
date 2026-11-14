@@ -9,7 +9,11 @@ Protected endpoints need the header `Authorization: Bearer <access_token>` (from
 | --- | --- | --- | --- |
 | POST | /auth/register | anyone | Register (always a customer) |
 | POST | /auth/login | anyone | Log in (form fields `username` = email, `password`); returns a token |
-| GET | /auth/me | logged in | The current user: id, name, email, role |
+| GET | /auth/me | logged in | The current user: id, name, email, role, created_at |
+| PATCH | /auth/me | logged in | Update `name` and/or `email` (changing email needs `current_password`; wrong password = 400, not 401) |
+| POST | /auth/change-password | logged in | `current_password` + `new_password`; sends a "password changed" email |
+| POST | /auth/forgot-password | anyone | `{email}` -> always 202 (no account probing); emails a one-time link, valid 30 min; rate limited (429) |
+| POST | /auth/reset-password | anyone | `{token, new_password}`; link works once, 400 if used/expired |
 | GET | /providers | anyone | List providers (`search`, `skip`, `limit`) |
 | GET | /providers/{id} | anyone | One provider |
 | POST | /providers | customer | Create your provider profile (you become a provider) |

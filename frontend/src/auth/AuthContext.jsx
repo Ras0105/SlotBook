@@ -74,6 +74,13 @@ export function AuthProvider({ children }) {
     return me;
   }, []);
 
+  // Save name/email. The server answers with the updated user, which becomes the current user at once.
+  const updateProfile = useCallback(async (changes) => {
+    const me = await api.updateProfile(changes);
+    setUser(me);
+    return me;
+  }, []);
+
   const signOut = useCallback(() => {
     tokenStore.clear();
     setUser(null);
@@ -82,8 +89,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, status, expired, signIn, signUp, signOut, refreshUser }),
-    [user, status, expired, signIn, signUp, signOut, refreshUser],
+    () => ({ user, status, expired, signIn, signUp, signOut, refreshUser, updateProfile }),
+    [user, status, expired, signIn, signUp, signOut, refreshUser, updateProfile],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

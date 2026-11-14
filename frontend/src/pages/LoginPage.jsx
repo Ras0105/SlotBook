@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import Alert from '../components/Alert';
+import PasswordInput from '../components/PasswordInput';
 import { friendlyError } from '../lib/errors';
 
 export default function LoginPage() {
@@ -9,6 +10,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from ?? '/providers'; // where the visitor was trying to go
+  const notice = location.state?.notice; // e.g. "Password reset. Log in with your new password."
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,7 +38,8 @@ export default function LoginPage() {
         <h1>Log in</h1>
         <p className="lede">Welcome back. Log in to book and manage your appointments.</p>
 
-        {expired && !error && <Alert kind="info">Your session ended. Log in again to continue.</Alert>}
+        {notice && !error && <Alert kind="success">{notice}</Alert>}
+        {expired && !error && !notice && <Alert kind="info">Your session ended. Log in again to continue.</Alert>}
         {error && <Alert kind="error">{error}</Alert>}
 
         <form className="form" onSubmit={handleSubmit} noValidate>
@@ -53,14 +56,18 @@ export default function LoginPage() {
           </div>
           <div className="field">
             <label htmlFor="password">Password</label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               autoComplete="current-password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            <p className="field__aside">
+              <Link to="/forgot-password" state={{ email: email.trim() }}>
+                Forgot password?
+              </Link>
+            </p>
           </div>
           <button className="btn btn--primary btn--block" type="submit" disabled={busy || !email || !password}>
             {busy ? 'Logging in…' : 'Log in'}

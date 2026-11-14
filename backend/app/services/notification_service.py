@@ -58,3 +58,25 @@ def booking_rescheduled(appointment: Appointment) -> list[Email]:
         f"Booking rescheduled: {service}",
         f"Hi {owner.name},\n\n{customer.name}'s appointment for {service} has moved.\nNew time: {when}\nReference: #{ref}\n",
     )
+
+
+# ---- account emails
+
+def password_reset(user, link: str, valid_minutes: int) -> Email:
+    return Email(
+        user.email,
+        "Reset your SlotBook password",
+        f"Hi {user.name},\n\n"
+        "Someone asked to reset the password for your SlotBook account. "
+        f"Use this link within {valid_minutes} minutes to choose a new one:\n\n{link}\n\n"
+        "If this was not you, you can ignore this email: your password stays the same.\n",
+    )
+
+
+def password_changed(user) -> Email:
+    return Email(
+        user.email,
+        "Your SlotBook password was changed",
+        f"Hi {user.name},\n\nThe password for your SlotBook account was just changed.\n"
+        "If this was not you, reset your password right away using \"Forgot password\" on the log in page.\n",
+    )

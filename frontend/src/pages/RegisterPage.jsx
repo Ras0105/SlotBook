@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import Alert from '../components/Alert';
+import PasswordInput from '../components/PasswordInput';
+import StrengthMeter from '../components/StrengthMeter';
 import { friendlyError } from '../lib/errors';
 
 export default function RegisterPage() {
@@ -94,9 +96,8 @@ export default function RegisterPage() {
           </div>
           <div className="field">
             <label htmlFor="password">Password</label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               autoComplete="new-password"
               value={form.password}
               onChange={set('password')}
@@ -112,6 +113,7 @@ export default function RegisterPage() {
                 At least 8 characters.
               </p>
             )}
+            <StrengthMeter password={form.password} />
           </div>
           <button className="btn btn--primary btn--block" type="submit" disabled={busy}>
             {busy ? 'Creating account…' : 'Create account'}
