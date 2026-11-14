@@ -41,6 +41,7 @@ def clean_db(engine):
         conn.execute(
             text(
                 "TRUNCATE reviews, appointment_history, appointments, blocked_slots, availability, "
+                "TRUNCATE appointment_history, appointments, blocked_slots, availability, "
                 "providers, password_reset_tokens, users RESTART IDENTITY CASCADE"
             )
         )
