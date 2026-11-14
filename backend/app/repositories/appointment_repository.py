@@ -4,7 +4,7 @@
 from datetime import datetime
 
 from sqlalchemy import and_, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models import Appointment, AppointmentHistory, AppointmentStatus, Provider
 
@@ -78,6 +78,25 @@ def list_for_provider_between(
         Appointment.status == AppointmentStatus.booked,
         Appointment.start_at < end,
         Appointment.end_at > start,
+    )
+    return list(db.scalars(stmt))
+
+
+def list_calendar(db: Session, provider_id: int, start: datetime, end: datetime) -> list[Appointment]:
+    """Booked and completed appointments of a provider that overlap [start, end), earliest first.
+
+    Cancelled ones are left out: the calendar shows who is actually coming.
+    """
+    stmt = (
+        select(Appointment)
+        .where(
+            Appointment.provider_id == provider_id,
+            Appointment.status != AppointmentStatus.cancelled,
+            Appointment.start_at < end,
+            Appointment.end_at > start,
+        )
+        .options(joinedload(Appointment.customer))
+        .order_by(Appointment.start_at, Appointment.id)
     )
     return list(db.scalars(stmt))
 

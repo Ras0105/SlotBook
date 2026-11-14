@@ -4,9 +4,13 @@ import { bookAppointment, getProvider } from '../api';
 import { useAuth } from '../auth/AuthContext';
 import Alert from '../components/Alert';
 import ConfirmBar from '../components/ConfirmBar';
+import ProviderAvatar from '../components/ProviderAvatar';
+import ReviewsSection from '../components/ReviewsSection';
 import SlotPicker from '../components/SlotPicker';
 import Spinner from '../components/Spinner';
+import StarRating from '../components/StarRating';
 import useAsync from '../hooks/useAsync';
+import { categoryLabel } from '../lib/categories';
 import { friendlyError } from '../lib/errors';
 import { formatLongDate, formatRange, isDateString, todayIn, tzLabel } from '../lib/time';
 import NotFoundPage from './NotFoundPage';
@@ -90,17 +94,19 @@ export default function ProviderPage() {
       </Link>
 
       <div className="provider-head">
-        <span className="duration" aria-hidden="true">
-          <strong>{provider.appointment_duration_minutes}</strong>
-          <span>min</span>
-        </span>
+        <ProviderAvatar provider={provider} size="xl" />
         <div>
           <h1>{provider.service_name}</h1>
           <p className="muted">
-            {provider.appointment_duration_minutes} minute appointments, {tzLabel(tz)} time
+            {categoryLabel(provider.category)}. {provider.appointment_duration_minutes} minute appointments, {tzLabel(tz)} time
+          </p>
+          <p className="provider-head__rating">
+            <StarRating average={provider.rating_avg} count={provider.review_count} />
           </p>
         </div>
       </div>
+
+      {provider.description && <p className="provider-about">{provider.description}</p>}
 
       {bookError && (
         <Alert kind="error" onDismiss={() => setBookError('')}>
@@ -134,6 +140,8 @@ export default function ProviderPage() {
           onConfirm={confirmBooking}
         />
       )}
+
+      <ReviewsSection provider={provider} />
     </div>
   );
 }

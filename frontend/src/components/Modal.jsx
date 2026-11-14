@@ -1,6 +1,18 @@
 import { useEffect, useRef } from 'react';
 
-const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE =
+  'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+// What Tab can reach inside the dialog. In a group of radio buttons only ONE is a Tab stop (the checked one,
+// or the first when none is checked); the arrow keys move within the group. Counting every radio would make
+// the "wrap around at the ends" logic below miss the real first and last stop.
+function tabStops(node) {
+  return [...node.querySelectorAll(FOCUSABLE)].filter((el) => {
+    if (el.type !== 'radio' || !el.name) return true;
+    const group = [...node.querySelectorAll('input[type="radio"]')].filter((r) => r.name === el.name);
+    return el === (group.find((r) => r.checked) ?? group[0]);
+  });
+}
 
 /**
  * A confirmation dialog.
@@ -26,7 +38,7 @@ export default function Modal({ title, children, actions, onClose, busy = false 
       if (event.key === 'Escape' && !busyRef.current) {
         closeRef.current();
       } else if (event.key === 'Tab') {
-        const items = [...node.querySelectorAll(FOCUSABLE)];
+        const items = tabStops(node);
         if (items.length === 0) return;
         const first = items[0];
         const last = items[items.length - 1];

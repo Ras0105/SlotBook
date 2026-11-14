@@ -32,7 +32,13 @@ describe('becoming a provider', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Create my profile' }));
 
     expect(await screen.findByRole('heading', { name: 'Provider dashboard' })).toBeInTheDocument();
-    expect(api.createProvider).toHaveBeenCalledWith({ serviceName: 'Dental checkup', durationMinutes: 45, timezone: 'Asia/Kolkata' });
+    expect(api.createProvider).toHaveBeenCalledWith({
+      serviceName: 'Dental checkup',
+      durationMinutes: 45,
+      timezone: 'Asia/Kolkata',
+      description: '',
+      category: 'other',
+    });
     expect(location()).toBe('/dashboard');
     expect(screen.getByRole('link', { name: 'Dashboard' })).toBeInTheDocument(); // the menu follows the new role
     expect(screen.getByText(/Your provider profile is ready/)).toBeInTheDocument();
@@ -295,7 +301,13 @@ describe('provider profile', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
     expect(await screen.findByText('Profile saved.')).toBeInTheDocument();
-    expect(api.updateMyProvider).toHaveBeenCalledWith({ serviceName: 'Family Checkup', durationMinutes: 20, timezone: 'Asia/Kolkata' });
+    expect(api.updateMyProvider).toHaveBeenCalledWith({
+      serviceName: 'Family Checkup',
+      durationMinutes: 20,
+      timezone: 'Asia/Kolkata',
+      description: '',
+      category: 'other',
+    });
     expect(screen.getByText(/Family Checkup: 20 minute appointments/)).toBeInTheDocument();
   });
 

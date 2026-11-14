@@ -11,7 +11,11 @@ import {
   formatPeriod,
   formatRange,
   formatTime,
+  formatWeekRange,
+  minutesOfDay,
   modernZone,
+  mondayOf,
+  weekDays,
   startOfDay,
   WEEKDAYS,
   zonedTimeToUtc,
@@ -176,5 +180,33 @@ describe('provider dashboard time helpers', () => {
     expect(zones[0]).toBe('UTC');
     expect(zones).toContain('Asia/Kolkata');
     expect(zones).not.toContain('Asia/Calcutta');
+  });
+});
+
+describe('week helpers', () => {
+  it('finds the Monday of any day in the week', () => {
+    expect(mondayOf('2030-01-07')).toBe('2030-01-07'); // a Monday
+    expect(mondayOf('2030-01-09')).toBe('2030-01-07');
+    expect(mondayOf('2030-01-13')).toBe('2030-01-07'); // Sunday belongs to the week that started on Monday
+    expect(mondayOf('2030-01-14')).toBe('2030-01-14');
+    expect(mondayOf('2030-01-01')).toBe('2029-12-31'); // across a year boundary
+  });
+
+  it('lists the seven days of a week', () => {
+    expect(weekDays('2030-01-07')).toEqual([
+      '2030-01-07', '2030-01-08', '2030-01-09', '2030-01-10', '2030-01-11', '2030-01-12', '2030-01-13',
+    ]);
+  });
+
+  it('reads the minutes since midnight on the provider clock', () => {
+    expect(minutesOfDay('2030-01-07T03:30:00Z', 'Asia/Kolkata')).toBe(9 * 60); // 09:00 in Kolkata
+    expect(minutesOfDay('2030-01-07T03:30:00Z', 'UTC')).toBe(3 * 60 + 30);
+    expect(minutesOfDay('2030-01-06T18:30:00Z', 'Asia/Kolkata')).toBe(0); // midnight, not 24:00
+  });
+
+  it('writes the week as a range', () => {
+    expect(formatWeekRange('2030-01-07')).toBe('7 to 13 Jan 2030');
+    expect(formatWeekRange('2030-01-28')).toBe('28 Jan to 3 Feb 2030');
+    expect(formatWeekRange('2029-12-31')).toBe('31 Dec 2029 to 6 Jan 2030');
   });
 });

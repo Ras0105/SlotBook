@@ -1,16 +1,8 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-
-function Logo() {
-  return (
-    <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="8" fill="#0e6b74" />
-      <rect x="7" y="8" width="18" height="4" rx="2" fill="#fff" />
-      <rect x="7" y="14" width="11" height="4" rx="2" fill="#f0b429" />
-      <rect x="7" y="20" width="14" height="4" rx="2" fill="#fff" opacity=".6" />
-    </svg>
-  );
-}
+import Avatar from './Avatar';
+import Logo from './Logo';
+import ThemeToggle from './ThemeToggle';
 
 export default function Layout() {
   const { user, status, signOut } = useAuth();
@@ -28,7 +20,7 @@ export default function Layout() {
       </a>
       <header className="site-header">
         <div className="site-header__inner">
-          <Link to="/providers" className="brand">
+          <Link to="/" className="brand">
             <Logo />
             SlotBook
           </Link>
@@ -40,9 +32,13 @@ export default function Layout() {
             {user?.role === 'admin' && <NavLink to="/admin">Admin</NavLink>}
           </nav>
           <div className="account">
+            <ThemeToggle />
             {status === 'authed' && user ? (
               <>
-                <span className="account__name">{user.name}</span>
+                <NavLink to="/profile" className="account__me" title="View and edit your profile">
+                  <Avatar name={user.name} size="sm" />
+                  <span className="account__name">{user.name}</span>
+                </NavLink>
                 <button type="button" className="btn btn--secondary btn--small" onClick={handleLogout}>
                   Log out
                 </button>
@@ -63,6 +59,22 @@ export default function Layout() {
       <main id="main" tabIndex={-1}>
         <Outlet />
       </main>
+      <footer className="site-footer">
+        <div className="site-footer__inner">
+          <div className="site-footer__brand">
+            <Link to="/" className="brand brand--small">
+              <Logo size={24} />
+              SlotBook
+            </Link>
+            <p className="muted">Appointments without the back-and-forth.</p>
+          </div>
+          <div className="site-footer__links">
+            <Link to="/providers">Browse providers</Link>
+            {user?.role !== 'admin' && <Link to={user ? '/appointments' : '/register'}>{user ? 'Your bookings' : 'Sign up free'}</Link>}
+          </div>
+          <p className="muted site-footer__copy">© {new Date().getFullYear()} SlotBook</p>
+        </div>
+      </footer>
     </>
   );
 }

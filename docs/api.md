@@ -9,7 +9,11 @@ Protected endpoints need the header `Authorization: Bearer <access_token>` (from
 | --- | --- | --- | --- |
 | POST | /auth/register | anyone | Register (always a customer) |
 | POST | /auth/login | anyone | Log in (form fields `username` = email, `password`); returns a token |
-| GET | /auth/me | logged in | The current user: id, name, email, role |
+| GET | /auth/me | logged in | The current user: id, name, email, role, created_at |
+| PATCH | /auth/me | logged in | Update `name` and/or `email` (changing email needs `current_password`; wrong password = 400, not 401) |
+| POST | /auth/change-password | logged in | `current_password` + `new_password`; sends a "password changed" email |
+| POST | /auth/forgot-password | anyone | `{email}` -> always 202 (no account probing); emails a one-time link, valid 30 min; rate limited (429) |
+| POST | /auth/reset-password | anyone | `{token, new_password}`; link works once, 400 if used/expired |
 | GET | /providers | anyone | List providers (`search`, `skip`, `limit`) |
 | GET | /providers/{id} | anyone | One provider |
 | POST | /providers | customer | Create your provider profile (you become a provider) |
@@ -167,3 +171,19 @@ After 5 failed logins for one email from one IP within 5 minutes:
 ```
 
 Admins cannot be created through the API; use `python -m app.scripts.create_admin`.
+
+## Profiles, reviews and calendar
+
+| Method and path | Who | What |
+|---|---|---|
+| `GET /providers?category=dentist&search=...` | anyone | Filter by category (`dentist, doctor, therapist, tutor, fitness, salon, legal, consultant, other`); search also matches the description |
+| `POST /providers`, `PATCH /providers/me` | provider | Now accept `description` (max 500, `""` clears) and `category` |
+| `POST /providers/me/photo` | provider | Multipart field `file`: JPEG, PNG or WebP, max 512 KB (content is checked, not just the header). Returns the profile |
+| `DELETE /providers/me/photo` | provider | Remove the photo |
+| `GET /providers/{id}/photo` | anyone | The image; `photo_url` in the profile carries `?v=<ms>` so long caching is safe |
+| `GET /providers/me/calendar?start=&end=` | provider | Booked + completed appointments overlapping the range (max 62 days) with `customer_name` |
+| `POST /appointments/{id}/review` | the customer | `{rating: 1-5, comment?}`. Allowed once the appointment is over (status completed, or booked with a past end time, which is then marked completed). 409 if cancelled, not over, or already reviewed |
+| `GET /providers/{id}/reviews?skip&limit` | anyone | Newest first; reviewer shown as "Asha R." |
+
+Provider objects now include `description`, `category`, `photo_url`, `rating_avg` (null until reviewed) and `review_count`. Appointment objects include `review` (or null).
+"Add to calendar" needs no endpoint: the browser builds the `.ics` file.

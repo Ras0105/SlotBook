@@ -5,10 +5,13 @@ import { useAuth } from '../auth/AuthContext';
 import Alert from '../components/Alert';
 import EmptyState from '../components/EmptyState';
 import Modal from '../components/Modal';
+import ReviewModal from '../components/ReviewModal';
 import Spinner from '../components/Spinner';
+import { StarsOnly } from '../components/StarRating';
 import StatusBadge from '../components/StatusBadge';
 import useAsync from '../hooks/useAsync';
 import { friendlyError } from '../lib/errors';
+import { appointmentIcs, downloadIcs, icsFilename } from '../lib/ics';
 import { fetchProvider } from '../lib/providerCache';
 import {
   dayParts,
@@ -66,13 +69,19 @@ function History({ appointmentId, timeZone }) {
   );
 }
 
-function AppointmentItem({ appt, provider, user, highlighted, upcoming, onCancel }) {
+// A booking whose end time has passed took place, even if nobody clicked "complete".
+const hasEnded = (appt, now = Date.now()) => appt.status === 'completed' || (appt.status === 'booked' && new Date(appt.end_at).getTime() <= now);
+
+function AppointmentItem({ appt, provider, user, highlighted, upcoming, onCancel, onReview }) {
   const [showHistory, setShowHistory] = useState(false);
   const tz = provider?.timezone ?? userTimeZone();
   const parts = dayParts(dayOf(appt.start_at, tz));
   const name = provider?.service_name ?? `Provider #${appt.provider_id}`;
   const note = yourTimeNote(appt.start_at, tz);
   const isCustomer = appt.customer_id === user.id;
+  const ended = hasEnded(appt);
+  const shownStatus = ended ? 'completed' : appt.status;
+  const canReview = ended && isCustomer && !appt.review;
 
   return (
     <li className={`appt appt--${appt.status}${highlighted ? ' appt--new' : ''}`}>
@@ -95,10 +104,31 @@ function AppointmentItem({ appt, provider, user, highlighted, upcoming, onCancel
               {note ? `, ${note}` : ''}
             </div>
           </div>
-          <StatusBadge status={appt.status} />
+          <StatusBadge status={shownStatus} />
         </div>
 
+        {appt.review && (
+          <div className="appt__review">
+            <span className="muted">Your review</span> <StarsOnly rating={appt.review.rating} />
+            {appt.review.comment && <p className="appt__review-text">{appt.review.comment}</p>}
+          </div>
+        )}
+
         <div className="appt__actions">
+          {upcoming && (
+            <button
+              type="button"
+              className="btn btn--secondary btn--small"
+              onClick={() => downloadIcs(icsFilename(appt), appointmentIcs(appt, provider))}
+            >
+              Add to calendar
+            </button>
+          )}
+          {canReview && (
+            <button type="button" className="btn btn--primary btn--small" onClick={() => onReview(appt)}>
+              Rate this visit
+            </button>
+          )}
           {upcoming && isCustomer && (
             <Link className="btn btn--secondary btn--small" to={`/appointments/${appt.id}/reschedule`}>
               Reschedule
@@ -144,6 +174,7 @@ export default function AppointmentsPage() {
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelling, setCancelling] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [reviewTarget, setReviewTarget] = useState(null);
 
   async function confirmCancel() {
     setCancelling(true);
@@ -160,6 +191,17 @@ export default function AppointmentsPage() {
     } finally {
       setCancelling(false);
     }
+  }
+
+  function reviewSaved(review) {
+    // Reviewing a past booking also marks it completed on the server, so show it that way here too.
+    setUpdated((u) => {
+      const current = u[review.appointment_id] ?? data.appointments.find((a) => a.id === review.appointment_id);
+      return { ...u, [review.appointment_id]: { ...current, status: 'completed', review } };
+    });
+    setReviewTarget(null);
+    setFlash('Thanks for your review.');
+    setActionError('');
   }
 
   if (loading) return <div className="page"><Spinner label="Loading your appointments" /></div>;
@@ -260,11 +302,22 @@ export default function AppointmentsPage() {
                 highlighted={appt.id === highlightId}
                 upcoming={tab === 'upcoming'}
                 onCancel={setCancelTarget}
+                onReview={setReviewTarget}
               />
             ))}
           </ul>
         )}
       </div>
+
+      {reviewTarget && (
+        <ReviewModal
+          appointment={reviewTarget}
+          serviceName={data.providers[reviewTarget.provider_id]?.service_name ?? 'your appointment'}
+          onDone={reviewSaved}
+          onStale={reload}
+          onClose={() => setReviewTarget(null)}
+        />
+      )}
 
       {cancelTarget && (
         <Modal

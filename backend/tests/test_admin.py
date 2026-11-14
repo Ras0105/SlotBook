@@ -47,7 +47,7 @@ def test_lists_everything_newest_first(client, data):
 
 def test_response_has_no_internal_fields(client, data):
     row = listing(client, data)[0]
-    assert set(row) == {"id", "customer_id", "provider_id", "start_at", "end_at", "status", "created_at"}
+    assert set(row) == {"id", "customer_id", "provider_id", "start_at", "end_at", "status", "created_at", "review"}
 
 
 def test_filter_by_provider(client, data):

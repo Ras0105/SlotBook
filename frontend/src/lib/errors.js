@@ -27,6 +27,8 @@ export function friendlyError(error, context = '') {
       if (context === 'register') return 'An account with this email already exists. Try logging in instead.';
       return error.message;
     case 429:
+      if (context === 'forgot') return `Too many reset requests. Try again in ${formatWait(error.retryAfter)}.`;
+      if (context === 'password') return `Too many wrong passwords. Try again in ${formatWait(error.retryAfter)}.`;
       return `Too many failed login attempts. Try again in ${formatWait(error.retryAfter)}.`;
     case 503:
       return `The booking system is busy right now. Try again in ${formatWait(error.retryAfter ?? 5)}.`;

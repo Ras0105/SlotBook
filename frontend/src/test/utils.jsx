@@ -18,6 +18,11 @@ export const PROVIDER = {
   service_name: 'General Checkup',
   appointment_duration_minutes: 30,
   timezone: 'Asia/Kolkata',
+  description: null,
+  category: 'other',
+  photo_url: null,
+  rating_avg: null,
+  review_count: 0,
 };
 
 // 09:00 Kolkata = 03:30 UTC. Built from "now" so slots are never in the past or on a odd day.

@@ -1,19 +1,24 @@
 import { useEffect } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import RequireAuth from './auth/RequireAuth';
 import RequireRole from './auth/RequireRole';
 import Layout from './components/Layout';
+import { ThemeProvider } from './theme/ThemeContext';
 import AdminAppointmentsPage from './pages/AdminAppointmentsPage';
 import AdminOverviewPage from './pages/AdminOverviewPage';
 import AppointmentsPage from './pages/AppointmentsPage';
 import BecomeProviderPage from './pages/BecomeProviderPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ProviderDashboardPage from './pages/ProviderDashboardPage';
+import ProfilePage from './pages/ProfilePage';
 import ProviderPage from './pages/ProviderPage';
 import ProvidersPage from './pages/ProvidersPage';
 import RegisterPage from './pages/RegisterPage';
 import ReschedulePage from './pages/ReschedulePage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 // Start every new page at the top (only when the path changes, not when ?date= or ?q= does).
 function ScrollToTop() {
@@ -28,15 +33,18 @@ function ScrollToTop() {
 
 export default function App() {
   return (
-    <>
+    <ThemeProvider>
       <ScrollToTop />
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<Navigate to="/providers" replace />} />
+          <Route index element={<LandingPage />} />
           <Route path="/providers" element={<ProvidersPage />} />
           <Route path="/providers/:id" element={<ProviderPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route path="/appointments" element={<RequireAuth><AppointmentsPage /></RequireAuth>} />
           <Route path="/appointments/:id/reschedule" element={<RequireAuth><ReschedulePage /></RequireAuth>} />
           <Route path="/become-provider" element={<BecomeProviderPage />} />
@@ -46,6 +54,6 @@ export default function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
-    </>
+    </ThemeProvider>
   );
 }

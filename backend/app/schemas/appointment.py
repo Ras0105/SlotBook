@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pydantic import AwareDatetime, BaseModel, field_validator
 
 from app.models import AppointmentStatus
+from app.schemas.review import ReviewOut
 
 
 def _to_utc(value: datetime) -> datetime:
@@ -34,6 +35,7 @@ class AppointmentOut(BaseModel):
     end_at: datetime
     status: AppointmentStatus
     created_at: datetime
+    review: ReviewOut | None = None  # set once the customer has reviewed this appointment
 
     model_config = {"from_attributes": True}
 

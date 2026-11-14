@@ -52,6 +52,7 @@ class Appointment(Base):
     history: Mapped[list["AppointmentHistory"]] = relationship(
         back_populates="appointment", order_by="AppointmentHistory.id"
     )
+    review: Mapped["Review | None"] = relationship(back_populates="appointment", uselist=False, lazy="selectin")
 
 
 class AppointmentHistory(Base):
