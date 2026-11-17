@@ -3,9 +3,20 @@
 
 from datetime import datetime, time
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, SmallInteger, String, Time, literal_column
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    SmallInteger,
+    String,
+    Time,
+    literal_column,
+)
 from sqlalchemy.dialects.postgresql import ExcludeConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, deferred, mapped_column, relationship
 
 from app.database.base import Base
 
@@ -22,10 +33,30 @@ class Provider(Base):
     appointment_duration_minutes: Mapped[int] = mapped_column(default=30)
     timezone: Mapped[str] = mapped_column(String(64), default="UTC", server_default="UTC")  # IANA name
 
+    # Public profile: short description, a category for the filter chips, and an optional photo / logo.
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    category: Mapped[str] = mapped_column(String(32), default="other", server_default="other")
+    # The image bytes live in the database (hosting like Vercel has no persistent disk). They are deferred, so
+    # listing providers never loads them; GET /providers/{id}/photo reads them on demand.
+    photo_data: Mapped[bytes | None] = deferred(mapped_column(LargeBinary, nullable=True))
+    photo_content_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    photo_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Review summary, kept in step with the reviews table inside the same transaction as each new review.
+    rating_avg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    review_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
     user: Mapped["User"] = relationship(back_populates="provider")
     availability: Mapped[list["Availability"]] = relationship(back_populates="provider")
     blocked_slots: Mapped[list["BlockedSlot"]] = relationship(back_populates="provider")
     appointments: Mapped[list["Appointment"]] = relationship(back_populates="provider")
+
+    @property
+    def photo_url(self) -> str | None:
+        """Relative URL of the photo; the millisecond timestamp changes with every upload, so caches never serve a stale one."""
+        if self.photo_updated_at is None:
+            return None
+        return f"/providers/{self.id}/photo?v={int(self.photo_updated_at.timestamp() * 1000)}"
 
 
 class Availability(Base):

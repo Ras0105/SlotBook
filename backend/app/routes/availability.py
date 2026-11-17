@@ -2,6 +2,7 @@
 # Purpose: HTTP endpoints for provider working hours and blocked periods.
 
 from fastapi import APIRouter, Depends, Query, Response, status
+from pydantic import AwareDatetime
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -50,11 +51,13 @@ def create_blocked_slot(
 @router.get("/availability/blocked-slots", response_model=list[BlockedSlotOut])
 def list_my_blocked_slots(
     include_past: bool = Query(default=False, description="Also list blocked periods that are already over"),
+    start: AwareDatetime | None = Query(default=None, description="With end: only periods overlapping [start, end)"),
+    end: AwareDatetime | None = Query(default=None, description="At most 62 days after start"),
     user: User = Depends(require_role(Role.provider)),
     db: Session = Depends(get_db),
 ):
     """The logged-in provider's blocked periods, soonest first."""
-    return availability_service.list_my_blocked_slots(db, user, include_past)
+    return availability_service.list_my_blocked_slots(db, user, include_past, start, end)
 
 
 @router.delete("/availability/blocked-slots/{blocked_slot_id}", status_code=status.HTTP_204_NO_CONTENT)

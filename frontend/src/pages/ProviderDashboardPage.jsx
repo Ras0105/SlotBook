@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { getMyProvider, updateMyProvider } from '../api';
 import Alert from '../components/Alert';
+import CalendarPanel from '../components/CalendarPanel';
+import PhotoPanel from '../components/PhotoPanel';
 import ProviderForm from '../components/ProviderForm';
 import Spinner from '../components/Spinner';
 import TimeOffPanel from '../components/TimeOffPanel';
@@ -12,6 +14,7 @@ import { tzLabel } from '../lib/time';
 
 const TABS = [
   { key: 'hours', label: 'Working hours' },
+  { key: 'calendar', label: 'Calendar' },
   { key: 'time-off', label: 'Time off' },
   { key: 'profile', label: 'Profile' },
 ];
@@ -40,6 +43,8 @@ function ProfilePanel({ provider, onSaved }) {
 
   return (
     <div className="panel-narrow">
+      <PhotoPanel provider={provider} onChanged={onSaved} />
+      <h2>Details</h2>
       {error && <Alert kind="error" onDismiss={() => setError('')}>{error}</Alert>}
       {saved && <Alert kind="success" onDismiss={() => setSaved(false)}>Profile saved.</Alert>}
       <ProviderForm
@@ -47,6 +52,8 @@ function ProfilePanel({ provider, onSaved }) {
           serviceName: provider.service_name,
           durationMinutes: String(provider.appointment_duration_minutes),
           timezone: provider.timezone,
+          description: provider.description ?? '',
+          category: provider.category ?? 'other',
         }}
         submitLabel="Save changes"
         busyLabel="Saving…"
@@ -123,6 +130,7 @@ export default function ProviderDashboardPage() {
 
       <div id="dash-panel" role="tabpanel" aria-labelledby={`dash-tab-${tab}`}>
         {tab === 'hours' && <WorkingHoursPanel provider={provider} />}
+        {tab === 'calendar' && <CalendarPanel provider={provider} />}
         {tab === 'time-off' && <TimeOffPanel provider={provider} />}
         {tab === 'profile' && <ProfilePanel provider={provider} onSaved={setSaved} />}
       </div>

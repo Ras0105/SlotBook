@@ -78,7 +78,7 @@ def list_blocked_between(
         BlockedSlot.provider_id == provider_id,
         BlockedSlot.start_at < end,
         BlockedSlot.end_at > start,
-    )
+    ).order_by(BlockedSlot.start_at, BlockedSlot.id)
     return list(db.scalars(stmt))
 
 

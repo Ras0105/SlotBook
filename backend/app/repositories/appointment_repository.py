@@ -1,10 +1,10 @@
 # backend/app/repositories/appointment_repository.py
 # Purpose: database queries for appointments, row locks, overlap checks and status history.
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import and_, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models import Appointment, AppointmentHistory, AppointmentStatus, Provider
 
@@ -78,6 +78,25 @@ def list_for_provider_between(
         Appointment.status == AppointmentStatus.booked,
         Appointment.start_at < end,
         Appointment.end_at > start,
+    )
+    return list(db.scalars(stmt))
+
+
+def list_calendar(db: Session, provider_id: int, start: datetime, end: datetime) -> list[Appointment]:
+    """Booked and completed appointments of a provider that overlap [start, end), earliest first.
+
+    Cancelled ones are left out: the calendar shows who is actually coming.
+    """
+    stmt = (
+        select(Appointment)
+        .where(
+            Appointment.provider_id == provider_id,
+            Appointment.status != AppointmentStatus.cancelled,
+            Appointment.start_at < end,
+            Appointment.end_at > start,
+        )
+        .options(joinedload(Appointment.customer))
+        .order_by(Appointment.start_at, Appointment.id)
     )
     return list(db.scalars(stmt))
 
@@ -199,3 +218,46 @@ def top_providers(db: Session, start: datetime, end: datetime, limit: int = 5) -
         .limit(limit)
     )
     return [(pid, name, c) for pid, name, c in db.execute(stmt)]
+
+
+def next_for_customer(db: Session, customer_id: int, now: datetime) -> Appointment | None:
+    """The customer's soonest booked appointment that has not started yet."""
+    stmt = (
+        select(Appointment)
+        .where(
+            Appointment.customer_id == customer_id,
+            Appointment.status == AppointmentStatus.booked,
+            Appointment.start_at > now,
+        )
+        .order_by(Appointment.start_at, Appointment.id)
+        .limit(1)
+    )
+    return db.scalar(stmt)
+
+
+def claim_due_reminders(db: Session, now: datetime, hours_before: int, limit: int = 200) -> list[Appointment]:
+    """Booked appointments starting within `hours_before` hours whose reminder has not gone out, marked as sent.
+
+    - SKIP LOCKED: two reminder runs at the same time never pick the same appointment.
+    - Appointments booked less than `hours_before` before they start are skipped (the customer just got a
+      confirmation; a reminder minutes later is noise).
+    The caller commits, then sends, and calls release_reminder() for any whose delivery failed.
+    """
+    window = timedelta(hours=hours_before)
+    stmt = (
+        select(Appointment)
+        .where(
+            Appointment.status == AppointmentStatus.booked,
+            Appointment.reminder_sent_at.is_(None),
+            Appointment.start_at > now,
+            Appointment.start_at <= now + window,
+            Appointment.created_at <= Appointment.start_at - window,
+        )
+        .order_by(Appointment.start_at, Appointment.id)
+        .limit(limit)
+        .with_for_update(skip_locked=True)
+    )
+    appointments = list(db.scalars(stmt))
+    for appointment in appointments:
+        appointment.reminder_sent_at = now
+    return appointments

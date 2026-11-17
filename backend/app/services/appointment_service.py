@@ -106,6 +106,11 @@ def list_my_appointments(
     )
 
 
+def get_next_appointment(db: Session, user: User, now: datetime | None = None) -> Appointment | None:
+    """The soonest upcoming booked appointment of this customer, or None."""
+    return appointment_repository.next_for_customer(db, user.id, now or datetime.now(timezone.utc))
+
+
 def list_all_appointments(
     db: Session,
     provider_id: int | None = None,
@@ -158,6 +163,7 @@ def create_appointment(
             start_at=data.start_at,
             end_at=end_at,
             status=AppointmentStatus.booked,
+            notes=data.notes,
         )
         appointment_repository.create(db, appointment)
         appointment_repository.add_history(
@@ -234,6 +240,7 @@ def reschedule_appointment(
         old_start = appointment.start_at
         appointment.start_at = data.new_start_at
         appointment.end_at = new_end
+        appointment.reminder_sent_at = None  # the new time gets its own reminder
         appointment_repository.add_history(
             db,
             appointment.id,

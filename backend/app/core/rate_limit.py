@@ -52,3 +52,4 @@ class FailureLimiter:
 
 
 login_limiter = FailureLimiter()
+password_reset_limiter = FailureLimiter()  # counts every forgot-password request (not just failures)

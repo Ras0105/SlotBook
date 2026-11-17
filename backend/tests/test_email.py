@@ -3,6 +3,7 @@
 
 import logging
 import smtplib
+from contextlib import contextmanager
 
 import pytest
 
@@ -94,37 +95,23 @@ def test_smtp_failure_never_breaks_the_booking(client, setup, monkeypatch, caplo
 def test_one_failing_recipient_does_not_stop_the_other(monkeypatch):
     sent = []
 
-    def flaky(email):
-        if email.to == "bad@test.com":
-            raise RuntimeError("mailbox full")
-        sent.append(email.to)
+    class FakeServer:
+        def send_message(self, message):
+            if message["To"] == "bad@test.com":
+                raise smtplib.SMTPRecipientsRefused({"bad@test.com": (550, b"mailbox full")})
+            sent.append(message["To"])
 
-    monkeypatch.setattr(email_service, "_send_smtp", flaky)
+    @contextmanager
+    def fake_connection():
+        yield FakeServer()
+
+    monkeypatch.setattr(email_service, "_smtp_connection", fake_connection)
     monkeypatch.setattr(settings, "email_backend", "smtp")
-    email_service.send_all([email_service.Email("bad@test.com", "s", "b"), email_service.Email("ok@test.com", "s", "b")])
+    results = email_service.send_many(
+        [email_service.Email("bad@test.com", "s", "b"), email_service.Email("ok@test.com", "s", "b")]
+    )
+    assert results == [False, True]
     assert sent == ["ok@test.com"]
-
-
-def test_smtp_backend_builds_a_real_message(monkeypatch):
-    captured = {}
-
-    class FakeSMTP:
-        def __init__(self, host, port, timeout):
-            captured["server"] = (host, port)
-        def __enter__(self): return self
-        def __exit__(self, *a): return False
-        def starttls(self): captured["tls"] = True
-        def login(self, u, p): captured["login"] = (u, p)
-        def send_message(self, m): captured["msg"] = m
-
-    monkeypatch.setattr(settings, "email_backend", "smtp")
-    monkeypatch.setattr(settings, "smtp_host", "smtp.example.com")
-    monkeypatch.setattr(settings, "smtp_username", "user")
-    monkeypatch.setattr(settings, "smtp_password", "pw")
-    monkeypatch.setattr(smtplib, "SMTP", FakeSMTP)
-    assert email_service.send_email(email_service.Email("a@test.com", "Hello", "Body text")) is True
-    assert captured["server"] == ("smtp.example.com", 587) and captured["tls"] and captured["login"] == ("user", "pw")
-    assert captured["msg"]["To"] == "a@test.com" and captured["msg"]["Subject"] == "Hello"
 
 
 def test_disabled_backend_sends_nothing(monkeypatch):

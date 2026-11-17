@@ -7,7 +7,7 @@
 #   - a blocked slot cannot be created while a booking for that provider is half-way through.
 # Lock order is always: provider row first, then anything else. That prevents deadlocks.
 
-from datetime import datetime, timezone
+from datetime import timedelta, datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -124,11 +124,29 @@ def create_blocked_slot(db: Session, user: User, data: BlockedSlotCreate) -> Blo
     return slot
 
 
-def list_my_blocked_slots(db: Session, user: User, include_past: bool = False) -> list[BlockedSlot]:
-    """The caller's blocked periods, soonest first. Periods already over are hidden unless asked for."""
+def list_my_blocked_slots(
+    db: Session,
+    user: User,
+    include_past: bool = False,
+    start: datetime | None = None,
+    end: datetime | None = None,
+) -> list[BlockedSlot]:
+    """The caller's blocked periods, soonest first. Periods already over are hidden unless asked for.
+
+    With `start` and `end` only the periods overlapping that range are returned (past ones included):
+    this is what the calendar week view asks for.
+    """
     provider = provider_repository.get_by_user_id(db, user.id)
     if not provider:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "You do not have a provider profile")
+    if (start is None) != (end is None):
+        raise HTTPException(422, "Send both start and end, or neither")
+    if start is not None:
+        if start >= end:
+            raise HTTPException(422, "start must be before end")
+        if end - start > timedelta(days=62):
+            raise HTTPException(422, "Ask for at most 62 days at a time")
+        return availability_repository.list_blocked_between(db, provider.id, start, end)
     ends_after = None if include_past else datetime.now(timezone.utc)
     return availability_repository.list_blocked_for_provider(db, provider.id, ends_after)
 

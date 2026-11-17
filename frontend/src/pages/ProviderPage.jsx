@@ -4,9 +4,13 @@ import { bookAppointment, getProvider } from '../api';
 import { useAuth } from '../auth/AuthContext';
 import Alert from '../components/Alert';
 import ConfirmBar from '../components/ConfirmBar';
+import ProviderAvatar from '../components/ProviderAvatar';
+import ReviewsSection from '../components/ReviewsSection';
 import SlotPicker from '../components/SlotPicker';
 import Spinner from '../components/Spinner';
+import StarRating from '../components/StarRating';
 import useAsync from '../hooks/useAsync';
+import { categoryLabel } from '../lib/categories';
 import { friendlyError } from '../lib/errors';
 import { formatLongDate, formatRange, isDateString, todayIn, tzLabel } from '../lib/time';
 import NotFoundPage from './NotFoundPage';
@@ -23,6 +27,7 @@ export default function ProviderPage() {
   const [selected, setSelected] = useState(null);
   const [booking, setBooking] = useState(false);
   const [bookError, setBookError] = useState('');
+  const [notes, setNotes] = useState(''); // the customer's reason for visit, sent with the booking
   const [reloadKey, setReloadKey] = useState(0);
 
   if (loading) return <div className="page"><Spinner label="Loading provider" /></div>;
@@ -65,7 +70,7 @@ export default function ProviderPage() {
     setBooking(true);
     setBookError('');
     try {
-      const appt = await bookAppointment({ providerId: provider.id, startAt: selected.start_at });
+      const appt = await bookAppointment({ providerId: provider.id, startAt: selected.start_at, ...(notes.trim() ? { notes: notes.trim() } : {}) });
       navigate('/appointments', {
         state: {
           flash: `Booked. ${provider.service_name} on ${formatLongDate(appt.start_at, tz)}, ${formatRange(appt.start_at, appt.end_at, tz)}.`,
@@ -90,17 +95,19 @@ export default function ProviderPage() {
       </Link>
 
       <div className="provider-head">
-        <span className="duration" aria-hidden="true">
-          <strong>{provider.appointment_duration_minutes}</strong>
-          <span>min</span>
-        </span>
+        <ProviderAvatar provider={provider} size="xl" />
         <div>
           <h1>{provider.service_name}</h1>
           <p className="muted">
-            {provider.appointment_duration_minutes} minute appointments, {tzLabel(tz)} time
+            {categoryLabel(provider.category)}. {provider.appointment_duration_minutes} minute appointments, {tzLabel(tz)} time
+          </p>
+          <p className="provider-head__rating">
+            <StarRating average={provider.rating_avg} count={provider.review_count} />
           </p>
         </div>
       </div>
+
+      {provider.description && <p className="provider-about">{provider.description}</p>}
 
       {bookError && (
         <Alert kind="error" onDismiss={() => setBookError('')}>
@@ -125,6 +132,26 @@ export default function ProviderPage() {
       />
 
       {selected && !isOwnProfile && (
+        <section className="booking-notes" aria-labelledby="notes-heading">
+          <h2 id="notes-heading">Reason for visit (optional)</h2>
+          <div className="field">
+            <label className="visually-hidden" htmlFor="booking-notes">
+              Reason for visit
+            </label>
+            <textarea
+              id="booking-notes"
+              rows={3}
+              maxLength={500}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Anything the provider should know before you arrive"
+            />
+            <p className="field__hint">{notes.length} of 500 characters. The provider sees this with your booking.</p>
+          </div>
+        </section>
+      )}
+
+      {selected && !isOwnProfile && (
         <ConfirmBar
           slot={selected}
           timeZone={tz}
@@ -134,6 +161,8 @@ export default function ProviderPage() {
           onConfirm={confirmBooking}
         />
       )}
+
+      <ReviewsSection provider={provider} />
     </div>
   );
 }

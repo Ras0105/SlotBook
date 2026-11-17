@@ -239,3 +239,46 @@ export function allTimeZones() {
     a === 'UTC' ? -1 : b === 'UTC' ? 1 : a.localeCompare(b),
   );
 }
+
+// ---------------------------------------------------------------------------------------------
+// Week view (provider calendar).
+
+/** The Monday of the week that contains `day` ("YYYY-MM-DD"). Weeks run Monday to Sunday, like the API's weekdays. */
+export function mondayOf(day) {
+  const weekday = (dayToUtcNoon(day).getUTCDay() + 6) % 7; // 0 = Monday
+  return addDays(day, -weekday);
+}
+
+/** The seven days of the week starting at `monday`. */
+export function weekDays(monday) {
+  return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+}
+
+/** Minutes since midnight of a UTC instant, on the wall clock of `timeZone`. */
+export function minutesOfDay(iso, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(
+    new Date(iso),
+  );
+  const get = (type) => Number(parts.find((p) => p.type === type).value);
+  return (get('hour') % 24) * 60 + get('minute');
+}
+
+/** "16 to 22 Nov 2026", or "28 Dec 2026 to 3 Jan 2027" when the week spans months. */
+export function formatWeekRange(monday) {
+  const sunday = addDays(monday, 6);
+  const fmt = (day, options) => new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', ...options }).format(dayToUtcNoon(day));
+  const [a, b] = [monday, sunday];
+  if (a.slice(0, 7) === b.slice(0, 7)) return `${fmt(a, { day: 'numeric' })} to ${fmt(b, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  return `${fmt(a, { day: 'numeric', month: 'short', ...(a.slice(0, 4) !== b.slice(0, 4) ? { year: 'numeric' } : {}) })} to ${fmt(b, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+}
+
+/** "starting now", "in 25 minutes", "in 3 hours", "tomorrow", "in 5 days": how far away an instant is. */
+export function timeUntil(iso, now = Date.now()) {
+  const minutes = Math.round((new Date(iso).getTime() - now) / 60_000);
+  if (minutes <= 0) return 'starting now';
+  if (minutes < 60) return `in ${minutes} minute${minutes === 1 ? '' : 's'}`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `in ${hours} hour${hours === 1 ? '' : 's'}`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? 'tomorrow' : `in ${days} days`;
+}

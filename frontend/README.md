@@ -24,6 +24,9 @@ Open http://localhost:5173. The app expects the API at `http://localhost:8000`. 
 | Screen | Path | Notes |
 | --- | --- | --- |
 | Sign up / Log in | `/register`, `/login` | Field-level errors, lockout message (429), returns you to the page you were trying to reach |
+| Home (landing) | `/` | Hero, how it works, live provider cards, provider call to action |
+| Forgot / reset password | `/forgot-password`, `/reset-password?token=` | Emailed one-time link; same answer whether or not the email exists |
+| Profile | `/profile` | Edit name/email (email needs current password), change password, choose light / dark / device theme |
 | Browse providers | `/providers` | Search (debounced) and paging; both live in the URL |
 | Pick a time and book | `/providers/:id` | Day strip + times in the **provider's** timezone; a bar appears once you choose a time |
 | My appointments | `/appointments` | Upcoming / Past / Cancelled, cancel with confirmation, status history |

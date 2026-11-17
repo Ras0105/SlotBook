@@ -3,6 +3,7 @@
 # In production (ENVIRONMENT=production) the app refuses to start with an insecure configuration.
 
 import logging
+from email.utils import parseaddr
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -29,6 +30,13 @@ class Settings(BaseSettings):
     login_max_failed_attempts: int = 5
     login_window_seconds: int = 300
 
+    # Forgot password: the emailed link points at the frontend ({FRONTEND_URL}/reset-password?token=...).
+    # A link works once and expires. Requests are limited per email+IP so the form cannot be used to spam an inbox.
+    frontend_url: str = "http://localhost:5173"
+    password_reset_expire_minutes: int = 30
+    password_reset_max_requests: int = 5
+    password_reset_window_seconds: int = 900
+
     # Email: "console" (log it, default for development), "smtp" (really send), "disabled".
     # (tests use "memory", which collects messages in a list)
     email_backend: str = "console"
@@ -37,7 +45,21 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_username: str = ""
     smtp_password: str = ""
-    smtp_use_tls: bool = True
+    smtp_use_tls: bool = True  # STARTTLS: connect in plain text, then upgrade (port 587)
+    smtp_ssl: bool = False  # implicit TLS from the first byte (port 465). Takes the place of smtp_use_tls.
+    smtp_timeout_seconds: int = 10
+
+    # Reminders: a scheduler (Vercel Cron, cron-job.org, a server cron) calls GET /internal/send-reminders with
+    # "Authorization: Bearer <CRON_SECRET>". Empty CRON_SECRET switches that endpoint off.
+    reminder_hours_before: int = 24
+    cron_secret: str = ""
+
+    # WhatsApp reminders: "disabled" (default), "console" (log), "twilio" (really send), "memory" (tests).
+    whatsapp_backend: str = "disabled"
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_whatsapp_from: str = ""  # e.g. +14155238886 (the Twilio sandbox number) or your approved sender
+    twilio_content_sid: str = ""  # optional: an approved WhatsApp template (needed to message people first)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -77,6 +99,14 @@ class Settings(BaseSettings):
                 problems.append("CORS_ORIGINS must list your frontend's exact origin(s), not '*'")
             if self.email_backend.lower() == "smtp" and not self.smtp_host:
                 problems.append("SMTP_HOST is required when EMAIL_BACKEND=smtp")
+            if self.whatsapp_backend.lower() == "twilio" and not (
+                self.twilio_account_sid and self.twilio_auth_token and self.twilio_whatsapp_from
+            ):
+                problems.append("TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_WHATSAPP_FROM are required when WHATSAPP_BACKEND=twilio")
+            if self.email_backend.lower() == "smtp" and "@" not in parseaddr(self.email_from)[1]:
+                problems.append("EMAIL_FROM must contain an email address, e.g. 'SlotBook <no-reply@yourdomain.com>'")
+            if self.cron_secret and len(self.cron_secret) < 16:
+                problems.append("CRON_SECRET must be at least 16 characters (or empty to switch the reminder endpoint off)")
             if problems:
                 raise ValueError("Insecure production configuration: " + "; ".join(problems))
         elif insecure:

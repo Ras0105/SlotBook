@@ -3,9 +3,10 @@
 
 from datetime import datetime, timezone
 
-from pydantic import AwareDatetime, BaseModel, field_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator
 
 from app.models import AppointmentStatus
+from app.schemas.review import ReviewOut
 
 
 def _to_utc(value: datetime) -> datetime:
@@ -16,8 +17,17 @@ def _to_utc(value: datetime) -> datetime:
 class AppointmentCreate(BaseModel):
     provider_id: int
     start_at: AwareDatetime  # e.g. 2026-11-14T09:00:00Z; end time is derived from the provider's duration
+    notes: str | None = Field(default=None, max_length=500)  # "reason for visit", shown to the provider
 
     _utc = field_validator("start_at")(_to_utc)
+
+    @field_validator("notes")
+    @classmethod
+    def _trim_notes(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        value = value.strip()
+        return value or None
 
 
 class AppointmentReschedule(BaseModel):
@@ -34,6 +44,8 @@ class AppointmentOut(BaseModel):
     end_at: datetime
     status: AppointmentStatus
     created_at: datetime
+    notes: str | None = None
+    review: ReviewOut | None = None  # set once the customer has reviewed this appointment
 
     model_config = {"from_attributes": True}
 

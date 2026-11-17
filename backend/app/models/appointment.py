@@ -46,12 +46,16 @@ class Appointment(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
+    notes: Mapped[str | None] = mapped_column(String(500), nullable=True)  # the customer's "reason for visit"
+    # Set when the 24h reminder has been sent (or is being sent), so it goes out only once. Cleared on reschedule.
+    reminder_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     customer: Mapped["User"] = relationship(back_populates="appointments")
     provider: Mapped["Provider"] = relationship(back_populates="appointments")
     history: Mapped[list["AppointmentHistory"]] = relationship(
         back_populates="appointment", order_by="AppointmentHistory.id"
     )
+    review: Mapped["Review | None"] = relationship(back_populates="appointment", uselist=False, lazy="selectin")
 
 
 class AppointmentHistory(Base):

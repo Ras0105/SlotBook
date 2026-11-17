@@ -3,17 +3,21 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { listProviders } from '../api';
 import Alert from '../components/Alert';
 import EmptyState from '../components/EmptyState';
+import ProviderAvatar from '../components/ProviderAvatar';
 import Spinner from '../components/Spinner';
+import StarRating from '../components/StarRating';
 import useAsync from '../hooks/useAsync';
+import { CATEGORIES, categoryLabel, isCategory } from '../lib/categories';
 import { friendlyError } from '../lib/errors';
 import { tzLabel } from '../lib/time';
 
 const PAGE_SIZE = 10;
 
 export default function ProvidersPage() {
-  // The search text and page number live in the URL, so refresh and the Back button keep working.
+  // The search text, category and page number live in the URL, so refresh and the Back button keep working.
   const [params, setParams] = useSearchParams();
   const q = params.get('q') ?? '';
+  const category = isCategory(params.get('category')) ? params.get('category') : '';
   const page = Math.max(1, Number(params.get('page')) || 1);
 
   const [text, setText] = useState(q);
@@ -27,19 +31,32 @@ export default function ProvidersPage() {
     const timer = setTimeout(() => {
       const next = new URLSearchParams();
       if (text.trim()) next.set('q', text.trim());
+      if (category) next.set('category', category); // searching keeps the chosen category
       setParams(next, { replace: true });
     }, 300);
     return () => clearTimeout(timer);
-  }, [text, q, setParams]);
+  }, [text, q, category, setParams]);
 
   // Ask for one extra row: if it comes back, there is a next page (the API has no total count).
   const { data, error, loading, reload } = useAsync(
-    (signal) => listProviders({ search: q, skip: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE + 1 }, signal),
-    [q, page],
+    (signal) =>
+      listProviders(
+        { search: q, ...(category ? { category } : {}), skip: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE + 1 },
+        signal,
+      ),
+    [q, category, page],
   );
 
   const providers = data?.slice(0, PAGE_SIZE) ?? [];
   const hasNext = (data?.length ?? 0) > PAGE_SIZE;
+
+  function chooseCategory(value) {
+    const next = new URLSearchParams(params);
+    next.delete('page'); // a different filter starts at page 1
+    if (value) next.set('category', value);
+    else next.delete('category');
+    setParams(next);
+  }
 
   function goToPage(n) {
     const next = new URLSearchParams(params);
@@ -69,6 +86,23 @@ export default function ProvidersPage() {
         />
       </form>
 
+      <div className="chips" role="group" aria-label="Filter by category">
+        <button type="button" className="chip" aria-pressed={!category} onClick={() => chooseCategory('')}>
+          All
+        </button>
+        {CATEGORIES.map((c) => (
+          <button
+            key={c.value}
+            type="button"
+            className="chip"
+            aria-pressed={category === c.value}
+            onClick={() => chooseCategory(c.value)}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+
       {loading && <Spinner label="Loading providers" />}
 
       {error && (
@@ -86,16 +120,26 @@ export default function ProvidersPage() {
 
       {data && providers.length === 0 && (
         <EmptyState
-          title={q ? `No providers match “${q}”` : 'No providers yet'}
+          title={
+            q
+              ? `No providers match “${q}”`
+              : category
+                ? `No ${categoryLabel(category).toLowerCase()} providers yet`
+                : 'No providers yet'
+          }
           action={
-            q || page > 1 ? (
+            q || category || page > 1 ? (
               <button type="button" className="btn btn--secondary" onClick={() => setParams({})}>
-                {q ? 'Clear search' : 'Back to the first page'}
+                {q ? (category ? 'Clear filters' : 'Clear search') : category ? 'Show all categories' : 'Back to the first page'}
               </button>
             ) : null
           }
         >
-          {q ? 'Try a shorter or different word.' : 'Providers show up here once they set up their profile.'}
+          {q
+            ? 'Try a shorter or different word.'
+            : category
+              ? 'Try another category.'
+              : 'Providers show up here once they set up their profile.'}
         </EmptyState>
       )}
 
@@ -105,15 +149,16 @@ export default function ProvidersPage() {
             {providers.map((p) => (
               <li className="provider-row" key={p.id}>
                 <Link className="provider-row__link" to={`/providers/${p.id}`}>
-                  <span className="duration" aria-hidden="true">
-                    <strong>{p.appointment_duration_minutes}</strong>
-                    <span>min</span>
-                  </span>
+                  <ProviderAvatar provider={p} size="lg" />
                   <span>
                     <span className="provider-row__name">{p.service_name}</span>
                     <br />
                     <span className="provider-row__meta">
-                      {p.appointment_duration_minutes} minute appointments, {tzLabel(p.timezone)} time
+                      {categoryLabel(p.category)}. {p.appointment_duration_minutes} minute appointments, {tzLabel(p.timezone)} time
+                    </span>
+                    {p.description && <span className="provider-row__about">{p.description}</span>}
+                    <span className="provider-row__rating">
+                      <StarRating average={p.rating_avg} count={p.review_count} compact />
                     </span>
                   </span>
                   <span className="provider-row__go">See times</span>

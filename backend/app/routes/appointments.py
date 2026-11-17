@@ -31,7 +31,13 @@ def book_appointment(
     return appointment
 
 
-# Declared before "/{appointment_id}" so "me" is never parsed as an id.
+# Declared before "/{appointment_id}" so "me" and "next" are never parsed as an id.
+@router.get("/next", response_model=AppointmentOut | None)
+def get_next_appointment(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """The logged-in customer's soonest upcoming appointment, or null when there is none."""
+    return appointment_service.get_next_appointment(db, user)
+
+
 @router.get("/me", response_model=list[AppointmentOut])
 def list_my_appointments(
     status_filter: AppointmentStatus | None = Query(default=None, alias="status"),

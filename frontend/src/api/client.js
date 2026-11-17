@@ -80,15 +80,18 @@ async function readBody(response) {
 /**
  * request('/providers', { method, body, form, auth, signal })
  *   body: object, sent as JSON      form: object, sent form-encoded (login only)
+ *   formData: a FormData (file upload); the browser sets the multipart Content-Type itself
  *   auth: false to skip the token (login/register)
  */
-export async function request(path, { method = 'GET', body, form, auth = true, signal } = {}) {
+export async function request(path, { method = 'GET', body, form, formData, auth = true, signal } = {}) {
   const headers = {};
   const token = auth ? tokenStore.get() : null;
   if (token) headers.Authorization = `Bearer ${token}`;
 
   let payload;
-  if (form) {
+  if (formData) {
+    payload = formData; // no Content-Type here: the browser adds it, including the multipart boundary
+  } else if (form) {
     headers['Content-Type'] = 'application/x-www-form-urlencoded';
     payload = new URLSearchParams(form).toString();
   } else if (body !== undefined) {

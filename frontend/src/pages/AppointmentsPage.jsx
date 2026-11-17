@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { cancelAppointment, getAppointment, listMyAppointments } from '../api';
+import { cancelAppointment, deleteReview, getAppointment, listMyAppointments } from '../api';
 import { useAuth } from '../auth/AuthContext';
 import Alert from '../components/Alert';
 import EmptyState from '../components/EmptyState';
 import Modal from '../components/Modal';
+import ReviewModal from '../components/ReviewModal';
 import Spinner from '../components/Spinner';
+import { StarsOnly } from '../components/StarRating';
 import StatusBadge from '../components/StatusBadge';
 import useAsync from '../hooks/useAsync';
 import { friendlyError } from '../lib/errors';
+import { appointmentIcs, downloadIcs, icsFilename } from '../lib/ics';
 import { fetchProvider } from '../lib/providerCache';
 import {
   dayParts,
@@ -66,13 +69,19 @@ function History({ appointmentId, timeZone }) {
   );
 }
 
-function AppointmentItem({ appt, provider, user, highlighted, upcoming, onCancel }) {
+// A booking whose end time has passed took place, even if nobody clicked "complete".
+const hasEnded = (appt, now = Date.now()) => appt.status === 'completed' || (appt.status === 'booked' && new Date(appt.end_at).getTime() <= now);
+
+function AppointmentItem({ appt, provider, user, highlighted, upcoming, onCancel, onReview, onDeleteReview }) {
   const [showHistory, setShowHistory] = useState(false);
   const tz = provider?.timezone ?? userTimeZone();
   const parts = dayParts(dayOf(appt.start_at, tz));
   const name = provider?.service_name ?? `Provider #${appt.provider_id}`;
   const note = yourTimeNote(appt.start_at, tz);
   const isCustomer = appt.customer_id === user.id;
+  const ended = hasEnded(appt);
+  const shownStatus = ended ? 'completed' : appt.status;
+  const canReview = ended && isCustomer && !appt.review;
 
   return (
     <li className={`appt appt--${appt.status}${highlighted ? ' appt--new' : ''}`}>
@@ -95,10 +104,48 @@ function AppointmentItem({ appt, provider, user, highlighted, upcoming, onCancel
               {note ? `, ${note}` : ''}
             </div>
           </div>
-          <StatusBadge status={appt.status} />
+          <StatusBadge status={shownStatus} />
         </div>
 
+        {appt.notes && (
+          <p className="appt__notes">
+            <span className="muted">Reason for visit:</span> {appt.notes}
+          </p>
+        )}
+
+        {appt.review && (
+          <div className="appt__review">
+            <span className="muted">Your review</span> <StarsOnly rating={appt.review.rating} />
+            {appt.review.updated_at && <span className="muted"> (edited)</span>}
+            {appt.review.comment && <p className="appt__review-text">{appt.review.comment}</p>}
+            {isCustomer && (
+              <div className="appt__review-actions">
+                <button type="button" className="btn-link" onClick={() => onReview(appt)}>
+                  Edit review
+                </button>
+                <button type="button" className="btn-link btn-link--danger" onClick={() => onDeleteReview(appt)}>
+                  Delete review
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="appt__actions">
+          {upcoming && (
+            <button
+              type="button"
+              className="btn btn--secondary btn--small"
+              onClick={() => downloadIcs(icsFilename(appt), appointmentIcs(appt, provider))}
+            >
+              Add to calendar
+            </button>
+          )}
+          {canReview && (
+            <button type="button" className="btn btn--primary btn--small" onClick={() => onReview(appt)}>
+              Rate this visit
+            </button>
+          )}
           {upcoming && isCustomer && (
             <Link className="btn btn--secondary btn--small" to={`/appointments/${appt.id}/reschedule`}>
               Reschedule
@@ -144,6 +191,9 @@ export default function AppointmentsPage() {
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelling, setCancelling] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [reviewTarget, setReviewTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null); // the appointment whose review is about to be deleted
+  const [deleting, setDeleting] = useState(false);
 
   async function confirmCancel() {
     setCancelling(true);
@@ -159,6 +209,34 @@ export default function AppointmentsPage() {
       if (err.status === 409 || err.status === 404) reload(); // our list was out of date
     } finally {
       setCancelling(false);
+    }
+  }
+
+  function reviewSaved(review) {
+    // Reviewing a past booking also marks it completed on the server, so show it that way here too.
+    setUpdated((u) => {
+      const current = u[review.appointment_id] ?? data.appointments.find((a) => a.id === review.appointment_id);
+      return { ...u, [review.appointment_id]: { ...current, status: 'completed', review } };
+    });
+    const edited = Boolean(reviewTarget?.review);
+    setReviewTarget(null);
+    setFlash(edited ? 'Your review was updated.' : 'Thanks for your review.');
+    setActionError('');
+  }
+
+  async function confirmDeleteReview() {
+    setDeleting(true);
+    try {
+      await deleteReview(deleteTarget.review.id);
+      setUpdated((u) => ({ ...u, [deleteTarget.id]: { ...(u[deleteTarget.id] ?? deleteTarget), review: null } }));
+      setFlash('Your review was deleted.');
+      setActionError('');
+    } catch (err) {
+      setActionError(friendlyError(err));
+      if (err.status === 404 || err.status === 403) reload(); // the list was out of date
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
     }
   }
 
@@ -260,11 +338,47 @@ export default function AppointmentsPage() {
                 highlighted={appt.id === highlightId}
                 upcoming={tab === 'upcoming'}
                 onCancel={setCancelTarget}
+                onReview={setReviewTarget}
+                onDeleteReview={setDeleteTarget}
               />
             ))}
           </ul>
         )}
       </div>
+
+      {reviewTarget && (
+        <ReviewModal
+          appointment={reviewTarget}
+          serviceName={data.providers[reviewTarget.provider_id]?.service_name ?? 'your appointment'}
+          onDone={reviewSaved}
+          onStale={reload}
+          onClose={() => setReviewTarget(null)}
+        />
+      )}
+
+      {deleteTarget && (
+        <Modal
+          title="Delete your review?"
+          busy={deleting}
+          onClose={() => setDeleteTarget(null)}
+          actions={
+            <>
+              <button type="button" className="btn btn--secondary" data-autofocus onClick={() => setDeleteTarget(null)} disabled={deleting}>
+                Keep review
+              </button>
+              <button type="button" className="btn btn--danger" onClick={confirmDeleteReview} disabled={deleting}>
+                {deleting ? 'Deleting…' : 'Delete review'}
+              </button>
+            </>
+          }
+        >
+          <p>
+            Your {deleteTarget.review.rating} star review of{' '}
+            {data.providers[deleteTarget.provider_id]?.service_name ?? 'this appointment'} will be removed and the provider’s
+            rating updated. You can write a new one afterwards.
+          </p>
+        </Modal>
+      )}
 
       {cancelTarget && (
         <Modal
