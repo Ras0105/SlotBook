@@ -85,22 +85,15 @@ export default function CalendarPanel({ provider }) {
   const days = weekDays(monday);
 
   // Bookings and time off for the week, fetched together so the grid never shows half the picture.
-  const { data, error, loading, reload } = useAsync(async (signal) => {
-    const range = { start: startOfDay(monday, tz), end: startOfDay(addDays(monday, 7), tz) };
-    const [entries, blocks] = await Promise.all([getMyCalendar(range, signal), listBlockedSlots(range, signal)]);
-    return { entries, blocks };
-  }, [monday, tz]);
-
-  const entries = data?.entries ?? [];
-  const blocks = data?.blocks ?? [];
   const { data, error, loading, reload } = useAsync(
-    (signal) => getMyCalendar({ start: startOfDay(monday, tz), end: startOfDay(addDays(monday, 7), tz) }, signal),
-    [monday, tz],
-  );
+  (signal) => getMyCalendar({ start: startOfDay(monday, tz), end: startOfDay(addDays(monday, 7), tz) }, signal),
+  [monday, tz],
+);
 
-  const entries = data ?? [];
-  const [firstHour, lastHour] = hourRange(entries, tz);
-  const hours = Array.from({ length: lastHour - firstHour }, (_, i) => firstHour + i);
+const entries = data?.entries ?? [];
+const blocks = data?.blocks ?? [];
+const [firstHour, lastHour] = hourRange(entries, tz);
+const hours = Array.from({ length: lastHour - firstHour }, (_, i) => firstHour + i);
   const byDay = Object.fromEntries(days.map((d) => [d, []]));
   entries.forEach((e) => {
     const d = dayOfEntry(e, days, tz);
