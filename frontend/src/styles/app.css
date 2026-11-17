@@ -2583,3 +2583,21 @@ main:focus {
   color: var(--danger-ink);
   font-weight: 600;
 }
+
+/* footer credit */
+.site-footer__meta {
+  display: grid;
+  gap: 0.2rem;
+  text-align: right;
+}
+.site-footer__credit {
+  font-size: 0.875rem;
+}
+.site-footer__credit a {
+  font-weight: 600;
+}
+@media (max-width: 36rem) {
+  .site-footer__meta {
+    text-align: left;
+  }
+}

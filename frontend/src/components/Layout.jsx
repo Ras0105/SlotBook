@@ -74,7 +74,19 @@ export default function Layout() {
             <Link to="/providers">Browse providers</Link>
             {user?.role !== 'admin' && <Link to={user ? '/appointments' : '/register'}>{user ? 'Your bookings' : 'Sign up free'}</Link>}
           </div>
-          <p className="muted site-footer__copy">© {new Date().getFullYear()} SlotBook</p>
+                    <div className="site-footer__meta">
+            <p className="muted site-footer__copy">© {new Date().getFullYear()} SlotBook</p>
+            <p className="muted site-footer__credit">
+              Designed and built by{' '}
+              <a
+                href="https://www.linkedin.com/in/rasshi-ashish-srivastav"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Rasshi Srivastav
+              </a>
+            </p>
+          </div>
         </div>
       </footer>
     </>
