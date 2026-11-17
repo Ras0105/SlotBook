@@ -72,7 +72,6 @@ def create_review(
 
     db.refresh(review)
     return review
-<<<<<<< HEAD
 
 
 def _own_review_locked(db: Session, review_id: int, user: User, allow_admin: bool) -> tuple[Review, Provider]:
@@ -109,5 +108,3 @@ def delete_review(db: Session, user: User, review_id: int) -> None:
         review, provider = _own_review_locked(db, review_id, user, allow_admin=True)
         review_repository.delete(db, review)
         provider.rating_avg, provider.review_count = review_repository.summary_for_provider(db, provider.id)
-=======
->>>>>>> 8f5cf25e62fe66a545fd61d9619c447499f1f637
