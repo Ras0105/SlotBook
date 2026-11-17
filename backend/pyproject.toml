@@ -13,6 +13,7 @@ dependencies = [
     "passlib[argon2]",
     "python-multipart",
     "tzdata",
+    "httpx",
 ]
 
 [tool.vercel]
