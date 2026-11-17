@@ -7,3 +7,4 @@ dist/
 *.pyc
 .env.*
 !.env.example
+docs/admin-notes.local.md
