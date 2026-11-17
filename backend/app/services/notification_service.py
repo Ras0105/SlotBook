@@ -141,3 +141,13 @@ def reminder_whatsapp(appointment: Appointment) -> list[WhatsAppMessage]:
             )
         )
     return messages
+
+
+def email_verification(user, link: str, valid_hours: int) -> Email:
+    return Email(
+        user.email,
+        "Confirm your email for SlotBook",
+        f"Hi {user.name},\n\nWelcome to SlotBook! Please confirm that this is your email address:\n\n{link}\n\n"
+        f"The link works for {valid_hours} hours. Until you confirm, you can look around but not book.\n\n"
+        "If you did not create a SlotBook account, you can ignore this email.\n",
+    )

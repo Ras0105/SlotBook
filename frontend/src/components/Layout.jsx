@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import Avatar from './Avatar';
 import Logo from './Logo';
+import VerifyEmailBanner from './VerifyEmailBanner';
 import ThemeToggle from './ThemeToggle';
 
 export default function Layout() {
@@ -56,6 +57,7 @@ export default function Layout() {
           </div>
         </div>
       </header>
+      {status === 'authed' && user?.email_verified === false && <VerifyEmailBanner email={user.email} />}
       <main id="main" tabIndex={-1}>
         <Outlet />
       </main>

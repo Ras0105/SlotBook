@@ -13,6 +13,8 @@ vi.mock('../api', () => ({
   changePassword: vi.fn(),
   forgotPassword: vi.fn(),
   resetPassword: vi.fn(),
+  verifyEmail: vi.fn(),
+  resendVerification: vi.fn(),
   listProviders: vi.fn(),
   getProvider: vi.fn(),
   getSlots: vi.fn(),

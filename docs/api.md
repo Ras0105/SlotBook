@@ -198,3 +198,17 @@ Provider objects now include `description`, `category`, `photo_url`, `rating_avg
 | `GET /availability/blocked-slots?start=&end=` | provider | Time off overlapping a range (max 62 days, past included) |
 | `PATCH /auth/me` | user | New `phone` (+country code, `""` removes) and `reminders_enabled` |
 | `GET/POST /internal/send-reminders` | scheduler | `Authorization: Bearer CRON_SECRET`; 404 when CRON_SECRET is empty. See `docs/reminders-and-email.md` |
+
+## Email verification and signing out everywhere
+| Method and path | Who | What |
+|---|---|---|
+| `POST /auth/register` | anyone | Also emails a verification link (48 h). `email_verified` is `false` until it is used |
+| `POST /auth/verify-email` | anyone | `{token}` from the link. Safe to repeat; 400 for an invalid, expired or outdated link |
+| `POST /auth/resend-verification` | logged in | New link. Limited to 3 per hour per user (429 + `Retry-After`) |
+| `PATCH /auth/me` | logged in | Changing the email marks it unverified again and sends a link to the NEW address |
+| `POST /auth/reset-password` | anyone | Now also ends every existing session (`users.token_version` + 1) and verifies the address |
+
+Unverified users get 403 on `POST /appointments` and `POST /providers`; everything else works. `UserOut.email_verified`
+is always `true` when `EMAIL_VERIFICATION_ENABLED=false`. Session tokens carry `typ=access` and `tv` (token version);
+a token whose `tv` differs from the user's current version is refused with 401. Verification links are separate
+signed tokens (`typ=verify_email`) tied to the address they were sent to; they cannot be used to log in.

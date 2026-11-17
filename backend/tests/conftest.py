@@ -41,7 +41,6 @@ def clean_db(engine):
         conn.execute(
             text(
                 "TRUNCATE reviews, appointment_history, appointments, blocked_slots, availability, "
-                "TRUNCATE appointment_history, appointments, blocked_slots, availability, "
                 "providers, password_reset_tokens, users RESTART IDENTITY CASCADE"
             )
         )
@@ -72,11 +71,15 @@ def client(session_factory):
 def _isolate_global_state(monkeypatch):
     """Keep tests independent: fresh login counters, and emails collected in memory instead of logged."""
     from app.core.config import settings
-    from app.core.rate_limit import login_limiter, password_reset_limiter
+    from app.core.rate_limit import login_limiter, password_reset_limiter, verification_resend_limiter
 
     login_limiter.reset_all()
     password_reset_limiter.reset_all()
+    verification_resend_limiter.reset_all()
     monkeypatch.setattr(settings, "email_backend", "memory")
+    # Most tests are about something else and register people through the API: they would otherwise all need to
+    # click a verification link first. tests/test_email_verification.py switches it on.
+    monkeypatch.setattr(settings, "email_verification_enabled", False)
     try:
         from app.services import email_service
 

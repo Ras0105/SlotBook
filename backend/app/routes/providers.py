@@ -8,7 +8,7 @@ from pydantic import AwareDatetime
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
-from app.dependencies.auth import require_role
+from app.dependencies.auth import require_role, require_verified_role
 from app.models import Role, User
 from app.schemas.provider import CalendarEntryOut, ProviderCreate, ProviderOut, ProviderUpdate
 from app.schemas.slot import SlotsResponse
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/providers", tags=["providers"])
 @router.post("", response_model=ProviderOut, status_code=status.HTTP_201_CREATED)
 def create_provider(
     data: ProviderCreate,
-    user: User = Depends(require_role(Role.customer, Role.provider)),
+    user: User = Depends(require_verified_role(Role.customer, Role.provider)),
     db: Session = Depends(get_db),
 ):
     return provider_service.create_provider(db, user, data)

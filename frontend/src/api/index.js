@@ -40,6 +40,10 @@ export const forgotPassword = ({ email }) =>
 export const resetPassword = ({ token, newPassword }) =>
   request('/auth/reset-password', { method: 'POST', body: { token, new_password: newPassword }, auth: false });
 
+// Email verification: the emailed link opens /verify-email?token=...; the token is checked (no login needed).
+export const verifyEmail = (token) => request('/auth/verify-email', { method: 'POST', body: { token }, auth: false });
+export const resendVerification = () => request('/auth/resend-verification', { method: 'POST' });
+
 // ---- providers and slots (public)
 export const listProviders = ({ search = '', category = '', skip = 0, limit = 10 } = {}, signal) => {
   const params = new URLSearchParams({ skip, limit });

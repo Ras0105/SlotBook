@@ -55,6 +55,7 @@ export default function ProviderPage() {
   // The chosen day lives in the URL (?date=2026-11-16), so it survives login and refresh.
   const date = isDateString(dateParam) && dateParam >= today ? dateParam : today;
   const isOwnProfile = user?.id === provider.user_id;
+  const needsVerification = user?.email_verified === false; // booking needs a confirmed email address
 
   function changeDate(next) {
     setSelected(null);
@@ -131,7 +132,14 @@ export default function ProviderPage() {
         reloadKey={reloadKey}
       />
 
-      {selected && !isOwnProfile && (
+      {selected && !isOwnProfile && needsVerification && (
+        <Alert kind="info">
+          Please confirm your email address to book. We sent a link to {user.email}; the bar at the top of the page can send a
+          new one.
+        </Alert>
+      )}
+
+      {selected && !isOwnProfile && !needsVerification && (
         <section className="booking-notes" aria-labelledby="notes-heading">
           <h2 id="notes-heading">Reason for visit (optional)</h2>
           <div className="field">
@@ -151,7 +159,7 @@ export default function ProviderPage() {
         </section>
       )}
 
-      {selected && !isOwnProfile && (
+      {selected && !isOwnProfile && !needsVerification && (
         <ConfirmBar
           slot={selected}
           timeZone={tz}

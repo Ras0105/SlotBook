@@ -7,13 +7,20 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.security import create_access_token, hash_password, verify_password
+from app.core.security import (
+    create_access_token,
+    create_email_verification_token,
+    decode_email_verification_token,
+    hash_password,
+    verify_password,
+)
 from app.models import PasswordResetToken, Role, User
 from app.repositories import password_reset_repository, user_repository
 from app.schemas.auth import ProfileUpdate, RegisterRequest
 from app.services import notification_service
 from app.services.email_service import Email
 
+INVALID_VERIFY_LINK = "This verification link is invalid or has expired. Log in and ask for a new one."
 INVALID_RESET_LINK = "This reset link is invalid or has expired. Request a new one."
 
 
@@ -41,7 +48,7 @@ def login(db: Session, email: str, password: str) -> str:
     user = user_repository.get_by_email(db, email)
     if not user or not verify_password(password, user.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
-    return create_access_token(str(user.id))
+    return create_access_token(str(user.id), user.token_version)
 
 
 # ---- profile
@@ -57,6 +64,7 @@ def update_profile(db: Session, user: User, data: ProfileUpdate) -> User:
         if taken and taken.id != user.id:
             raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
         user.email = data.email
+        user.email_verified_at = None  # the new address has to be confirmed again
     if data.name is not None:
         user.name = data.name
     if data.phone is not None:
@@ -121,6 +129,39 @@ def reset_password(db: Session, token: str, new_password: str) -> Email:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, INVALID_RESET_LINK)
     user = user_repository.get_by_id(db, row.user_id)
     user.password_hash = hash_password(new_password)
+    # Sign out everywhere: every session token carries the old version and stops working. This is the point of
+    # resetting a password you suspect someone else knows. (Whoever resets is logged out too and logs in again.)
+    user.token_version += 1
+    # They just proved they control this inbox, which is exactly what email verification asks for.
+    if user.email_verified_at is None:
+        user.email_verified_at = now
     password_reset_repository.expire_open_tokens(db, user.id, now)  # this link and any other open ones
     db.commit()
     return notification_service.password_changed(user)
+
+
+# ---- email verification
+
+def verification_email(user: User) -> Email | None:
+    """The email with the verification link, or None when verification is off or the address is already verified."""
+    if not settings.email_verification_enabled or user.email_verified_at is not None:
+        return None
+    token = create_email_verification_token(user.id, user.email)
+    link = f"{settings.frontend_url.rstrip('/')}/verify-email?token={token}"
+    return notification_service.email_verification(user, link, settings.email_verification_hours)
+
+
+def verify_email(db: Session, token: str) -> User:
+    """Mark the address as verified. Safe to open twice. Refuses a link made for an address the user has since changed."""
+    decoded = decode_email_verification_token(token)
+    if decoded is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, INVALID_VERIFY_LINK)
+    user_id, email = decoded
+    user = user_repository.get_by_id(db, user_id)
+    if user is None or user.email != email:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, INVALID_VERIFY_LINK)
+    if user.email_verified_at is None:
+        user.email_verified_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(user)
+    return user

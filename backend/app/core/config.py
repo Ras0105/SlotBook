@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     # Forgot password: the emailed link points at the frontend ({FRONTEND_URL}/reset-password?token=...).
     # A link works once and expires. Requests are limited per email+IP so the form cannot be used to spam an inbox.
-    frontend_url: str = "https://slot-book-six.vercel.app"
+    frontend_url: str = "http://localhost:5173"
     password_reset_expire_minutes: int = 30
     password_reset_max_requests: int = 5
     password_reset_window_seconds: int = 900
@@ -51,6 +51,14 @@ class Settings(BaseSettings):
 
     # Reminders: a scheduler (Vercel Cron, cron-job.org, a server cron) calls GET /internal/send-reminders with
     # "Authorization: Bearer <CRON_SECRET>". Empty CRON_SECRET switches that endpoint off.
+    # Email verification: new accounts must confirm their address (link in an email) before they can book or
+    # become a provider. Existing accounts were marked verified by the migration. Turn off with
+    # EMAIL_VERIFICATION_ENABLED=false (e.g. when no real email server is set up yet).
+    email_verification_enabled: bool = True
+    email_verification_hours: int = 48
+    verification_resend_max: int = 3  # "send me a new link" requests ...
+    verification_resend_window_seconds: int = 3600  # ... per this many seconds
+
     reminder_hours_before: int = 24
     cron_secret: str = ""
 
@@ -111,6 +119,13 @@ class Settings(BaseSettings):
                 raise ValueError("Insecure production configuration: " + "; ".join(problems))
         elif insecure:
             logger.warning("Using a weak/default SECRET_KEY. This is only acceptable for local development.")
+        if self.is_production and self.email_verification_enabled and self.email_backend.lower() != "smtp":
+            logger.warning(
+                "EMAIL_VERIFICATION_ENABLED is on but EMAIL_BACKEND=%s does not really send email: new users "
+                "would never receive their verification link and could not book. Set up SMTP or set "
+                "EMAIL_VERIFICATION_ENABLED=false.",
+                self.email_backend,
+            )
         return self
 
 

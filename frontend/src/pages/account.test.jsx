@@ -89,7 +89,7 @@ describe('reset password', () => {
     expect(api.resetPassword).toHaveBeenCalledWith({ token: 'the-token', newPassword: 'brand-new-pass' });
     expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent('/login');
-    expect(screen.getByRole('status')).toHaveTextContent('Password reset. Log in with your new password.');
+    expect(screen.getByRole('status')).toHaveTextContent('Password reset. You were signed out on all devices. Log in with your new password.');
   });
 
   it('shows the "link doesn’t work" screen when the server says the token is used or expired', async () => {

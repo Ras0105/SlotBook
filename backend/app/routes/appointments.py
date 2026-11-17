@@ -5,7 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
-from app.dependencies.auth import get_current_user, require_role
+from app.dependencies.auth import get_current_user, require_verified_role
 from app.models import AppointmentStatus, Role, User
 from app.schemas.appointment import (
     AppointmentCreate,
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/appointments", tags=["appointments"])
 def book_appointment(
     data: AppointmentCreate,
     background_tasks: BackgroundTasks,
-    user: User = Depends(require_role(Role.customer, Role.provider)),
+    user: User = Depends(require_verified_role(Role.customer, Role.provider)),
     db: Session = Depends(get_db),
 ):
     appointment = appointment_service.create_appointment(db, user, data)  # committed (or raised) by here

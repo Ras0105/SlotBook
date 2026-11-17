@@ -10,6 +10,8 @@ import getpass
 import os
 import sys
 
+from datetime import datetime, timezone
+
 from app.core.security import hash_password
 from app.database.session import SessionLocal
 from app.models import Role, User
@@ -34,7 +36,11 @@ def main(argv: list[str] | None = None) -> int:
             action = "promoted to admin"
         else:
             user = User(
-                name=args.name, email=args.email, password_hash=hash_password(password), role=Role.admin
+                name=args.name,
+                email=args.email,
+                password_hash=hash_password(password),
+                role=Role.admin,
+                email_verified_at=datetime.now(timezone.utc),  # created by the operator, not by a sign-up form
             )
             user_repository.create(db, user)
             action = "created"

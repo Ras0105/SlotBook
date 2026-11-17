@@ -2553,3 +2553,33 @@ main:focus {
 .block strong {
   color: var(--ink);
 }
+
+/* ------------------------------------------------------------------ email verification banner */
+.verify-banner {
+  background: var(--signal-tint, #fff4d6);
+  color: var(--ink);
+  border-bottom: 1px solid var(--line-strong);
+}
+.verify-banner__inner {
+  max-width: var(--page-max, 72rem);
+  margin: 0 auto;
+  padding: 0.6rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+.verify-banner p {
+  margin: 0;
+}
+.verify-banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+}
+.verify-banner__error {
+  color: var(--danger-ink);
+  font-weight: 600;
+}

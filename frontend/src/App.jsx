@@ -19,6 +19,7 @@ import ProvidersPage from './pages/ProvidersPage';
 import RegisterPage from './pages/RegisterPage';
 import ReschedulePage from './pages/ReschedulePage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 
 // Start every new page at the top (only when the path changes, not when ?date= or ?q= does).
 function ScrollToTop() {
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route path="/appointments" element={<RequireAuth><AppointmentsPage /></RequireAuth>} />
           <Route path="/appointments/:id/reschedule" element={<RequireAuth><ReschedulePage /></RequireAuth>} />

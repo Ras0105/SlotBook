@@ -53,3 +53,5 @@ class FailureLimiter:
 
 login_limiter = FailureLimiter()
 password_reset_limiter = FailureLimiter()  # counts every forgot-password request (not just failures)
+
+verification_resend_limiter = FailureLimiter()  # "send me a new verification link" requests, per user

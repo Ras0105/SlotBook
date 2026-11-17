@@ -50,7 +50,7 @@ export default function ResetPasswordPage() {
     setBusy(true);
     try {
       await resetPassword({ token, newPassword: password });
-      navigate('/login', { replace: true, state: { notice: 'Password reset. Log in with your new password.' } });
+      navigate('/login', { replace: true, state: { notice: 'Password reset. You were signed out on all devices. Log in with your new password.' } });
     } catch (err) {
       if (err.status === 400) setLinkBroken(true);
       else if (err.status === 422 && err.fields?.new_password) setErrors({ password: err.fields.new_password });

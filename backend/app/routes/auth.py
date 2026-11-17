@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.rate_limit import login_limiter, password_reset_limiter
+from app.core.rate_limit import login_limiter, password_reset_limiter, verification_resend_limiter
 from app.database.session import get_db
 from app.dependencies.auth import get_current_user
 from app.models import User
@@ -19,6 +19,7 @@ from app.schemas.auth import (
     ResetPasswordRequest,
     Token,
     UserOut,
+    VerifyEmailRequest,
 )
 from app.services import auth_service, email_service
 
@@ -30,8 +31,11 @@ def _too_many(wait: int, message: str) -> HTTPException:
 
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-def register(data: RegisterRequest, db: Session = Depends(get_db)):
-    return auth_service.register(db, data)
+def register(data: RegisterRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    user = auth_service.register(db, data)
+    if (email := auth_service.verification_email(user)) is not None:
+        background_tasks.add_task(email_service.send_all, [email])
+    return user
 
 
 @router.post("/login", response_model=Token)
@@ -76,11 +80,20 @@ def _guard_password_checks(user: User) -> None:
 
 
 @router.patch("/me", response_model=UserOut)
-def update_me(data: ProfileUpdate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Update your name and/or email. Changing the email requires `current_password`."""
+def update_me(
+    data: ProfileUpdate,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update your name and/or email. Changing the email requires `current_password` and re-verifies the address."""
     _guard_password_checks(user)
+    old_email = user.email
     try:
-        return auth_service.update_profile(db, user, data)
+        updated = auth_service.update_profile(db, user, data)
+        if updated.email != old_email and (email := auth_service.verification_email(updated)) is not None:
+            background_tasks.add_task(email_service.send_all, [email])
+        return updated
     except auth_service.CurrentPasswordError:
         if data.current_password:  # only a typed-but-wrong password counts as a guess
             login_limiter.record_failure(_password_check_key(user), settings.login_window_seconds)
@@ -133,3 +146,30 @@ def reset_password(data: ResetPasswordRequest, background_tasks: BackgroundTasks
     notice = auth_service.reset_password(db, data.token, data.new_password)
     background_tasks.add_task(email_service.send_all, [notice])
     return MessageOut(message="Your password has been reset. You can log in now.")
+
+
+# ---- email verification
+
+@router.post("/verify-email", response_model=MessageOut)
+def verify_email(data: VerifyEmailRequest, db: Session = Depends(get_db)):
+    """Open from the emailed link (no login needed, so it works on any device). Safe to repeat."""
+    auth_service.verify_email(db, data.token)
+    return MessageOut(message="Your email address is verified.")
+
+
+@router.post("/resend-verification", response_model=MessageOut)
+def resend_verification(
+    background_tasks: BackgroundTasks, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    """Send a fresh verification link to the logged-in user. Limited per user, so it cannot be used to spam an inbox."""
+    if user.email_verified:
+        return MessageOut(message="Your email address is already verified.")
+    key = f"verify|{user.id}"
+    wait = verification_resend_limiter.retry_after(
+        key, settings.verification_resend_max, settings.verification_resend_window_seconds
+    )
+    if wait:
+        raise _too_many(wait, "Too many requests for a new link. Please try again later.")
+    verification_resend_limiter.record_failure(key, settings.verification_resend_window_seconds)
+    background_tasks.add_task(email_service.send_all, [auth_service.verification_email(user)])
+    return MessageOut(message="We sent you a new verification link.")
