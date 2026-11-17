@@ -93,6 +93,12 @@ export default function CalendarPanel({ provider }) {
 
   const entries = data?.entries ?? [];
   const blocks = data?.blocks ?? [];
+  const { data, error, loading, reload } = useAsync(
+    (signal) => getMyCalendar({ start: startOfDay(monday, tz), end: startOfDay(addDays(monday, 7), tz) }, signal),
+    [monday, tz],
+  );
+
+  const entries = data ?? [];
   const [firstHour, lastHour] = hourRange(entries, tz);
   const hours = Array.from({ length: lastHour - firstHour }, (_, i) => firstHour + i);
   const byDay = Object.fromEntries(days.map((d) => [d, []]));
@@ -203,6 +209,7 @@ export default function CalendarPanel({ provider }) {
                         , {e.status}
                         {e.notes ? `, reason for visit: ${e.notes}` : ''}
                       </span>
+                      <span className="visually-hidden">, {e.status}</span>
                     </li>
                   );
                 })}

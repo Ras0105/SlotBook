@@ -68,6 +68,7 @@ const FEATURES = [
   { icon: 'globe', title: 'Time zones handled', text: 'Times show in the provider’s time zone, with a note when your own clock differs.' },
   { icon: 'refresh', title: 'Easy changes', text: 'Move or cancel an appointment from one screen. Your old time stays yours until the new one is confirmed.' },
   { icon: 'mail', title: 'Emails and reminders', text: 'Booked, rescheduled or cancelled: everyone gets a clear email, and a reminder arrives the day before.' },
+  { icon: 'mail', title: 'Email confirmations', text: 'Booked, rescheduled or cancelled: everyone involved gets a clear email.' },
   { icon: 'moon', title: 'Light and dark', text: 'Pick the look that’s easiest on your eyes, or let it follow your device.' },
 ];
 

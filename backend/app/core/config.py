@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     # Forgot password: the emailed link points at the frontend ({FRONTEND_URL}/reset-password?token=...).
     # A link works once and expires. Requests are limited per email+IP so the form cannot be used to spam an inbox.
-    frontend_url: str = "http://localhost:5173"
+    frontend_url: str = "https://slot-book-six.vercel.app"
     password_reset_expire_minutes: int = 30
     password_reset_max_requests: int = 5
     password_reset_window_seconds: int = 900

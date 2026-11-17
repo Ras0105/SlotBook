@@ -128,6 +128,10 @@ function AppointmentItem({ appt, provider, user, highlighted, upcoming, onCancel
                 </button>
               </div>
             )}
+        {appt.review && (
+          <div className="appt__review">
+            <span className="muted">Your review</span> <StarsOnly rating={appt.review.rating} />
+            {appt.review.comment && <p className="appt__review-text">{appt.review.comment}</p>}
           </div>
         )}
 
@@ -238,6 +242,11 @@ export default function AppointmentsPage() {
       setDeleting(false);
       setDeleteTarget(null);
     }
+  }
+
+    setReviewTarget(null);
+    setFlash('Thanks for your review.');
+    setActionError('');
   }
 
   if (loading) return <div className="page"><Spinner label="Loading your appointments" /></div>;

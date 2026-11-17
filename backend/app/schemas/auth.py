@@ -19,8 +19,11 @@ class UserOut(BaseModel):
     email: EmailStr
     role: str
     created_at: datetime
+<<<<<<< HEAD
     phone: str | None = None
     reminders_enabled: bool = True
+=======
+>>>>>>> 8f5cf25e62fe66a545fd61d9619c447499f1f637
 
     model_config = {"from_attributes": True}
 
@@ -50,6 +53,7 @@ class ProfileUpdate(BaseModel):
     name: str | None = Field(default=None, max_length=120)
     email: EmailStr | None = None
     current_password: str | None = Field(default=None, max_length=128)
+<<<<<<< HEAD
     # International format, e.g. +14155550123. "" removes the number. Used only for WhatsApp reminders.
     phone: str | None = Field(default=None, max_length=20)
     reminders_enabled: bool | None = None
@@ -65,6 +69,8 @@ class ProfileUpdate(BaseModel):
         if not re.fullmatch(r"\+[1-9]\d{7,14}", value):
             raise ValueError("Enter the number with its country code, like +91 98765 43210")
         return value
+=======
+>>>>>>> 8f5cf25e62fe66a545fd61d9619c447499f1f637
 
     @field_validator("name")
     @classmethod
